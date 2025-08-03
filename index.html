@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Flashcards from Google Sheets</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #f4f4f4;
+      margin: 0;
+    }
+    .card {
+      width: 300px;
+      height: 180px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      text-align: center;
+      padding: 20px;
+      transition: 0.3s;
+    }
+    .buttons {
+      margin-top: 20px;
+    }
+    button {
+      margin: 0 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card" onclick="flipCard()">Loading...</div>
+  <div class="buttons">
+    <button onclick="prevCard()">◀ 이전</button>
+    <button onclick="nextCard()">다음 ▶</button>
+  </div>
+
+  <script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
+    let cards = [];
+    let current = 0;
+    let showingFront = true;
+
+    async function loadCards() {
+      const response = await fetch(SHEET_URL);
+      const text = await response.text();
+      const rows = text.trim().split("\n").slice(1); // skip header
+      cards = rows.map(row => {
+        const [front, back] = row.split(",");
+        return { front: front.trim(), back: back.trim() };
+      });
+      updateCard();
+    }
+
+    function updateCard() {
+      showingFront = true;
+      card.textContent = cards[current].front;
+    }
+
+    function flipCard() {
+      card.textContent = showingFront ? cards[current].back : cards[current].front;
+      showingFront = !showingFront;
+    }
+
+    function nextCard() {
+      current = (current + 1) % cards.length;
+      updateCard();
+    }
+
+    function prevCard() {
+      current = (current - 1 + cards.length) % cards.length;
+      updateCard();
+    }
+
+    const card = document.getElementById("card");
+    loadCards();
+  </script>
+</body>
+</html>
