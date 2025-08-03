@@ -200,12 +200,12 @@
         if (said === answer) {
           showInlineMessage(`✅ 정답! (${said})`);
           recognizing = false;
-          nextCard();
+          setTimeout(() => nextCard(), 1000);
         } else {
           document.getElementById("wrongSound").play();
           showInlineMessage(`❌ ${said} → 정답: ${answer}`);
           recognizing = false;
-          markWrong();
+          setTimeout(() => markWrong(), 1000);
         }
       };
 
