@@ -108,9 +108,11 @@
     }
 
     function speak(text, lang) {
+      if (!window.speechSynthesis) return;
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang;
-      speechSynthesis.speak(utter);
+      window.speechSynthesis.cancel(); // stop any current speech
+      window.speechSynthesis.speak(utter);
     }
 
     function updateCard() {
