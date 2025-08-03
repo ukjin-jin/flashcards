@@ -1,34 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Flashcards from Google Sheets</title>
+  <meta charset="UTF-8">
+  <title>Flashcards</title>
   <style>
     body {
       font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: #f4f4f4;
-      margin: 0;
+      text-align: center;
+      background: #f8f8f8;
+      padding: 20px;
     }
     .card {
-      width: 300px;
-      height: 180px;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 50px 20px;
+      margin: 20px auto;
+      width: 300px;
       font-size: 24px;
       cursor: pointer;
-      text-align: center;
-      padding: 20px;
-      transition: 0.3s;
       position: relative;
     }
     .message-overlay {
@@ -42,174 +32,72 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       display: none;
     }
-    .buttons {
-      margin-top: 20px;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 16px;
+    .buttons button {
+      margin: 6px;
+      padding: 10px 20px;
       font-size: 16px;
-      cursor: pointer;
     }
     .counter {
-      margin-top: 15px;
-      font-size: 18px;
-      color: #444;
-    }
-    #selfCheckBtns {
-      display: none;
       margin-top: 10px;
-    }
-    #messageBox {
-      margin-top: 20px;
       font-size: 18px;
-      color: #333;
-      background: #fff8d6;
-      padding: 10px 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-      display: none;
     }
     #voiceHint {
+      margin-top: 8px;
       font-size: 16px;
-      color: #666;
-      margin-top: 10px;
+      color: #777;
     }
-    .voice-toggle {
-      background: #28a745;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    .voice-toggle.off {
-      background: #dc3545;
-    }
-    #initVoice {
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
+    #resultBox {
+      margin-top: 30px;
       font-size: 18px;
-      padding: 15px 30px;
-      margin: 20px;
     }
   </style>
 </head>
 <body>
-  <button id="initVoice" onclick="initializeVoice()">🔊 음성 기능 시작하기</button>
-  
-  <div class="card" id="card" onclick="flipCard()" style="display: none;">
-    Loading...
+  <h2>🧠 Flashcard 학습</h2>
+  <div class="counter" id="counter"></div>
+  <div class="card" id="card" onclick="flipCard()">Loading...
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
-  <div class="counter" id="counter"></div>
   <div id="voiceHint"></div>
   <div class="buttons">
     <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="startSpeechRecognition()" id="speechBtn">🎤 정답 말하기</button>
-    <button id="voiceToggle" class="voice-toggle" onclick="toggleVoice()">🔊 음성 ON</button>
   </div>
-  <div id="selfCheckBtns">
+  <div id="selfCheckBtns" style="display: none;">
     <p>맞았나요?</p>
     <button onclick="markCorrectSelf()">⭕ 맞았음</button>
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
-  <div id="messageBox"></div>
-  <audio id="ding" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-
+  <div id="resultBox"></div>
+  <audio id="correctSound" src=""></audio>
+  <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
-    let originalCards = [];
-    let cards = [];
-    let current = 0;
-    let showingFront = true;
-    let wrongCards = [];
+    let recognizing = false;
     let useSpeech = false;
-    let voiceEnabled = false;
-    let voiceInitialized = false;
-
-    // 음성 기능 초기화 (사용자 상호작용 필요)
-    function initializeVoice() {
-      console.log('Initializing voice...');
-      
-      // 더미 음성으로 브라우저 권한 확보
-      const utterance = new SpeechSynthesisUtterance('');
-      utterance.volume = 0;
-      speechSynthesis.speak(utterance);
-      
-      voiceInitialized = true;
-      voiceEnabled = true;
-      
-      document.getElementById('initVoice').style.display = 'none';
-      document.getElementById('card').style.display = 'flex';
-      
-      loadCards();
-    }
-
-    // 음성 ON/OFF 토글
-    function toggleVoice() {
-      voiceEnabled = !voiceEnabled;
-      const btn = document.getElementById('voiceToggle');
-      if (voiceEnabled) {
-        btn.textContent = '🔊 음성 ON';
-        btn.className = 'voice-toggle';
-      } else {
-        btn.textContent = '🔇 음성 OFF';
-        btn.className = 'voice-toggle off';
-      }
-    }
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
+    let originalCards = [], cards = [], wrongCards = [];
+    let current = 0, showingFront = true;
 
     async function loadCards() {
-      try {
-        const response = await fetch(SHEET_URL);
-        const text = await response.text();
-        const rows = text.trim().split("\n").slice(1);
-        originalCards = rows.map(row => {
-          const [front, back] = row.split(",");
-          return { front: front.trim(), back: back.trim() };
-        });
-        resetToFullDeck();
-      } catch (error) {
-        console.error('Loading cards failed:', error);
-        document.getElementById('card').textContent = 'Failed to load cards';
-      }
+      const response = await fetch(SHEET_URL);
+      const text = await response.text();
+      const rows = text.trim().split("\n").slice(1);
+      originalCards = rows.map(row => {
+        const [front, back] = row.split(",");
+        return { front: front.trim(), back: back.trim() };
+      });
+      resetToFullDeck();
     }
 
     function resetToFullDeck() {
       cards = [...originalCards];
       shuffle(cards);
-      current = 0;
       wrongCards = [];
+      current = 0;
       updateCard();
-    }
-
-    function speak(text, lang) {
-      if (!voiceInitialized || !voiceEnabled) {
-        console.log('Voice not initialized or disabled');
-        return;
-      }
-
-      // 음성 큐 초기화
-      speechSynthesis.cancel();
-      
-      setTimeout(() => {
-        try {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = lang;
-          utterance.rate = 0.9;
-          utterance.pitch = 1.0;
-          utterance.volume = 0.8;
-          
-          utterance.onstart = () => console.log(`Speaking: "${text}" in ${lang}`);
-          utterance.onerror = (e) => console.error('Speech error:', e);
-          
-          speechSynthesis.speak(utterance);
-        } catch (error) {
-          console.error('Speech synthesis error:', error);
-        }
-      }, 100);
+      document.getElementById("resultBox").innerHTML = "";
     }
 
     function shuffle(array) {
@@ -219,48 +107,37 @@
       }
     }
 
-    function showInlineMessage(msg) {
-      const box = document.getElementById("inlineMessage");
-      box.textContent = msg;
-      box.style.display = 'block';
-      setTimeout(() => box.style.display = 'none', 2000);
-    }
-
-    function showMessage(msg) {
-      const box = document.getElementById("messageBox");
-      box.textContent = msg;
-      box.style.display = 'block';
+    function speak(text, lang) {
+      if (!window.speechSynthesis) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
     }
 
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
       const content = cards[current].front;
-      document.getElementById('card').textContent = content;
-      document.getElementById('card').appendChild(document.getElementById("inlineMessage"));
-      
-      // 약간의 지연 후 음성 재생
-      setTimeout(() => speak(content, "en-US"), 200);
-      
+      const cardElem = document.getElementById("card");
+      cardElem.textContent = content;
+      cardElem.appendChild(document.getElementById("inlineMessage"));
       document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
+      speak(content, "en-US");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
     }
 
     function flipCard() {
       if (cards.length === 0) return;
+      const cardElem = document.getElementById("card");
       const content = showingFront ? cards[current].back : cards[current].front;
-      document.getElementById('card').textContent = content;
-      document.getElementById('card').appendChild(document.getElementById("inlineMessage"));
-      
-      // 약간의 지연 후 음성 재생
-      setTimeout(() => speak(content, showingFront ? "ko-KR" : "en-US"), 200);
-      
+      cardElem.textContent = content;
+      cardElem.appendChild(document.getElementById("inlineMessage"));
+      speak(content, showingFront ? "ko-KR" : "en-US");
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
-      } else {
-        document.getElementById("selfCheckBtns").style.display = 'none';
       }
     }
 
@@ -281,22 +158,9 @@
         updateCard();
       } else {
         const correct = cards.length - wrongCards.length;
-        let msg = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!`;
-        if (wrongCards.length === 0) msg += " 🎉 전부 맞았습니다!";
-        showMessage(msg);
-
-        setTimeout(() => {
-          const again = confirm("틀린 카드만 다시 보기? (취소하면 전체 다시 시작)");
-          if (again && wrongCards.length > 0) {
-            cards = [...wrongCards];
-            shuffle(cards);
-            wrongCards = [];
-            current = 0;
-            updateCard();
-          } else {
-            resetToFullDeck();
-          }
-        }, 500);
+        document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!<br><br>
+          <button onclick="retryWrong()">틀린 것만 다시하기</button>
+          <button onclick="resetToFullDeck()">전체 다시하기</button>`;
       }
     }
 
@@ -305,47 +169,69 @@
       updateCard();
     }
 
-    function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        showInlineMessage('❗ 음성 인식 미지원 브라우저');
-        useSpeech = false;
-        return;
+    function retryWrong() {
+      if (wrongCards.length > 0) {
+        cards = [...wrongCards];
+        shuffle(cards);
+        wrongCards = [];
+        current = 0;
+        updateCard();
+        document.getElementById("resultBox").innerHTML = "";
       }
+    }
 
-      useSpeech = true;
-      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
-      
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ko-KR';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+    function showInlineMessage(msg) {
+      const box = document.getElementById("inlineMessage");
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(() => box.style.display = 'none', 2000);
+    }
 
-      recognition.onresult = function(event) {
-        const speechResult = event.results[0][0].transcript.trim();
-        const correctAnswer = cards[current].back.trim();
-        if (speechResult === correctAnswer) {
-          document.getElementById("ding").play();
-          showInlineMessage(`✅ 정답! (${speechResult})`);
-          nextCard();
+    function startSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window) || recognizing) return;
+      const recog = new webkitSpeechRecognition();
+      recog.lang = 'ko-KR';
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+      recognizing = true;
+      recog.onresult = function(event) {
+        const said = event.results[0][0].transcript.trim();
+        const answer = cards[current].back.trim();
+        if (said === answer) {
+          showInlineMessage(`✅ 정답! (${said})`);
+          recognizing = false;
+          setTimeout(() => nextCard(), 1000);
         } else {
-          showInlineMessage(`❌ '${speechResult}' → 정답: ${correctAnswer}`);
-          markWrong();
+          document.getElementById("wrongSound").play();
+          showInlineMessage(`❌ ${said} → 정답: ${answer}`);
+          recognizing = false;
+          setTimeout(() => markWrong(), 1000);
         }
       };
-
-      recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
-        showInlineMessage('❗ 음성 인식 오류: 다시 눌러주세요.');
-        document.getElementById("voiceHint").textContent = "❗ 음성 인식 실패. 다시 눌러주세요.";
+      recog.onerror = function() {
+        showInlineMessage("❗ 음성 인식 실패");
+        document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
+        recognizing = false;
       };
-
-      recognition.onend = function() {
+      recog.onend = function() {
+        recognizing = false;
         document.getElementById("voiceHint").textContent = "";
       };
-
-      recognition.start();
+      recog.start();
+      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
     }
+
+    if ('webkitSpeechRecognition' in window) {
+      useSpeech = true;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "inline-block";
+    } else {
+      useSpeech = false;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "none";
+    }
+
+    loadCards();
   </script>
 </body>
 </html>
