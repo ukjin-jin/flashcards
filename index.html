@@ -48,7 +48,7 @@
   <script>
     let recognizing = false;
     let useSpeech = false;
-    let alreadySpoken = false; // 세션 전체에서 단 1회만 단어 읽기
+    let alreadySpoken = false;
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
@@ -135,12 +135,10 @@
     }
 
     function markWrong() {
-      wrongCards.push(cards[current]);
-      nextCard();
+      markWrongAndShowAnswer();
     }
-
     function markCorrectSelf() {
-      nextCard();
+      showAnswerThenNextCard();
     }
 
     function nextCard() {
@@ -189,6 +187,21 @@
       if (box) box.style.display = 'none';
     }
 
+    // (핵심) 정답/오답 후 답(뒤집힌 카드) 보여주고 다음 카드로 자동
+    function showAnswerThenNextCard() {
+      let answerText = isEngFirst() ? cards[current].back : cards[current].front;
+      document.getElementById("cardText").textContent = answerText;
+      speak(answerText, isEngFirst() ? "ko-KR" : "en-US");
+      setTimeout(() => {
+        nextCard();
+      }, 1000);
+    }
+    // 오답시: 틀린 목록에 넣고 정답 보여주기
+    function markWrongAndShowAnswer() {
+      wrongCards.push(cards[current]);
+      showAnswerThenNextCard();
+    }
+
     // 레벤슈타인(최소 편집 거리) 함수
     function getEditDistance(a, b) {
       a = a.toLowerCase();
@@ -215,8 +228,6 @@
       }
       return costs[b.length];
     }
-
-    // 유사도 판정: 1글자 이내 오타 허용
     function isAnswerCorrect(said, answer) {
       if (said === answer) return true;
       if (getEditDistance(said, answer) <= 1) return true;
@@ -252,14 +263,16 @@
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
           setTimeout(() => {
-            nextCard();
+            hideInlineMessage();
+            showAnswerThenNextCard();
             document.getElementById("voiceHint").textContent = "";
           }, 800);
         } else {
           showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
           recognizing = false;
           setTimeout(() => {
-            markWrong();
+            hideInlineMessage();
+            markWrongAndShowAnswer();
             document.getElementById("voiceHint").textContent = "";
           }, 1100);
         }
