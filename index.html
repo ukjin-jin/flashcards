@@ -44,6 +44,7 @@
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
   <div id="resultBox"></div>
+  <audio id="rightSound" src="https://cdn.pixabay.com/audio/2022/08/20/audio_124bfa42ab.mp3"></audio>
   <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
   <script>
     let recognizing = false;
@@ -196,52 +197,4 @@
 
       recog.onresult = function(event) {
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
-        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
-        if (said === answer) {
-          showInlineMessage(`✅ 정답!`);
-          recognizing = false;
-          setTimeout(() => {
-            nextCard();
-            document.getElementById("voiceHint").textContent = "";
-          }, 800);
-        } else {
-          document.getElementById("wrongSound").play();
-          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
-          recognizing = false;
-          setTimeout(() => {
-            markWrong();
-            document.getElementById("voiceHint").textContent = "";
-          }, 1100);
-        }
-      };
-      recog.onerror = function() {
-        showInlineMessage("❗ 음성 인식 실패");
-        document.getElementById("voiceHint").textContent = "";
-        recognizing = false;
-      };
-      recog.onend = function() {
-        recognizing = false;
-        document.getElementById("voiceHint").textContent = "";
-      };
-      recog.start();
-    }
-
-    if ('webkitSpeechRecognition' in window) {
-      useSpeech = true;
-      const speechBtn = document.getElementById("speechBtn");
-      if (speechBtn) speechBtn.style.display = "inline-block";
-    } else {
-      useSpeech = false;
-      const speechBtn = document.getElementById("speechBtn");
-      if (speechBtn) speechBtn.style.display = "none";
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
-      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
-    });
-
-    loadCards();
-  </script>
-</body>
-</html>
+        const answer = (isEngFirst() ? car
