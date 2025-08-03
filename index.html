@@ -34,18 +34,35 @@
       margin-top: 20px;
     }
     button {
-      margin: 0 10px;
-      padding: 10px 20px;
+      margin: 5px;
+      padding: 10px 16px;
       font-size: 16px;
       cursor: pointer;
+    }
+    .counter {
+      margin-top: 15px;
+      font-size: 18px;
+      color: #444;
+    }
+    #selfCheckBtns {
+      display: none;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
   <div class="card" id="card" onclick="flipCard()">Loading...</div>
+  <div class="counter" id="counter"></div>
   <div class="buttons">
     <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
+    <button onclick="markWrong()">틀렸음</button>
+    <button onclick="startSpeechRecognition()" id="speechBtn">🎤 정답 말하기</button>
+  </div>
+  <div id="selfCheckBtns">
+    <p>맞았나요?</p>
+    <button onclick="markCorrectSelf()">⭕ 맞았음</button>
+    <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
 
   <script>
@@ -53,36 +70,126 @@
     let cards = [];
     let current = 0;
     let showingFront = true;
+    let wrongCards = [];
+    let useSpeech = false;
 
     async function loadCards() {
       const response = await fetch(SHEET_URL);
       const text = await response.text();
-      const rows = text.trim().split("\n").slice(1); // skip header
+      const rows = text.trim().split("\n").slice(1);
       cards = rows.map(row => {
         const [front, back] = row.split(",");
         return { front: front.trim(), back: back.trim() };
       });
+      shuffle(cards);
       updateCard();
+    }
+
+    function speak(text, lang) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      speechSynthesis.speak(utterance);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
     }
 
     function updateCard() {
+      if (cards.length === 0) return;
       showingFront = true;
-      card.textContent = cards[current].front;
+      const content = cards[current].front;
+      card.textContent = content;
+      speak(content, "en-US");
+      document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
+      document.getElementById("selfCheckBtns").style.display = 'none';
     }
 
     function flipCard() {
-      card.textContent = showingFront ? cards[current].back : cards[current].front;
+      if (cards.length === 0) return;
+      const content = showingFront ? cards[current].back : cards[current].front;
+      card.textContent = content;
+      speak(content, showingFront ? "ko-KR" : "en-US");
       showingFront = !showingFront;
+      if (!useSpeech && !showingFront) {
+        document.getElementById("selfCheckBtns").style.display = 'block';
+      } else {
+        document.getElementById("selfCheckBtns").style.display = 'none';
+      }
+    }
+
+    function markWrong() {
+      wrongCards.push(cards[current]);
+      nextCard();
+    }
+
+    function markCorrectSelf() {
+      nextCard();
     }
 
     function nextCard() {
-      current = (current + 1) % cards.length;
-      updateCard();
+      document.getElementById("selfCheckBtns").style.display = 'none';
+      if (current < cards.length - 1) {
+        current++;
+        updateCard();
+      } else {
+        const correct = cards.length - wrongCards.length;
+        let message = `모든 카드를 다 봤어요!\n\n✅ 맞은 개수: ${correct}\n❌ 틀린 개수: ${wrongCards.length}`;
+        if (wrongCards.length === 0) {
+          message += "\n\n🎉 모든 문제를 맞추셨어요!";
+        }
+        message += "\n\n틀린 카드만 다시 보기? (취소를 누르면 전체 다시 시작합니다.)";
+
+        const again = confirm(message);
+        if (again && wrongCards.length > 0) {
+          cards = [...wrongCards];
+        } else {
+          shuffle(cards);
+        }
+        wrongCards = [];
+        current = 0;
+        updateCard();
+      }
     }
 
     function prevCard() {
       current = (current - 1 + cards.length) % cards.length;
       updateCard();
+    }
+
+    function startSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert('이 브라우저는 음성 인식을 지원하지 않습니다. 눌러서 정답을 확인하고 직접 맞았는지 선택해주세요.');
+        useSpeech = false;
+        return;
+      }
+
+      useSpeech = true;
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = 'ko-KR';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = function(event) {
+        const speechResult = event.results[0][0].transcript.trim();
+        const correctAnswer = cards[current].back.trim();
+        if (speechResult === correctAnswer) {
+          alert(`✅ 정답! (${speechResult})`);
+          nextCard();
+        } else {
+          alert(`❌ 틀렸어요. 말한 것: ${speechResult}\n정답: ${correctAnswer}`);
+          markWrong();
+        }
+      };
+
+      recognition.onerror = function(event) {
+        alert('음성 인식 오류: ' + event.error);
+      };
+
+      recognition.start();
     }
 
     const card = document.getElementById("card");
