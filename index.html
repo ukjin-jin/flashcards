@@ -85,30 +85,28 @@
 
     function speak(text, lang) {
       if (!window.speechSynthesis) return;
-      // 첫 번째 유저 액션(예: 카드 클릭, 버튼 클릭)이 있어야 소리 가능!
       window.speechSynthesis.cancel();
       setTimeout(() => {
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = lang;
         window.speechSynthesis.speak(utter);
-      }, 220);
+      }, 150);
     }
 
-function updateCard() {
-  if (cards.length === 0) return;
-  showingFront = true;
-  let content = isEngFirst() ? cards[current].front : cards[current].back;
-  const cardElem = document.getElementById("card");
-  cardElem.textContent = content;
-  const inlineMsg = document.getElementById("inlineMessage");
-  if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
-  document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
-  speak(content, isEngFirst() ? "en-US" : "ko-KR");
-  document.getElementById("selfCheckBtns").style.display = 'none';
-  document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
-}
-
-
+    function updateCard() {
+      if (cards.length === 0) return;
+      showingFront = true;
+      let content = isEngFirst() ? cards[current].front : cards[current].back;
+      const cardElem = document.getElementById("card");
+      cardElem.textContent = content;
+      // 안전하게 메시지 DOM만 붙이기
+      const inlineMsg = document.getElementById("inlineMessage");
+      if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
+      document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
+      speak(content, isEngFirst() ? "en-US" : "ko-KR");
+      document.getElementById("selfCheckBtns").style.display = 'none';
+      document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
+    }
 
     function flipCard() {
       if (cards.length === 0) return;
@@ -122,7 +120,8 @@ function updateCard() {
 
       const cardElem = document.getElementById("card");
       cardElem.textContent = content;
-      cardElem.appendChild(document.getElementById("inlineMessage"));
+      const inlineMsg = document.getElementById("inlineMessage");
+      if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
       speak(content, lang);
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
@@ -172,6 +171,7 @@ function updateCard() {
 
     function showInlineMessage(msg) {
       const box = document.getElementById("inlineMessage");
+      if (!box) return;
       box.textContent = msg;
       box.style.display = 'block';
       setTimeout(() => box.style.display = 'none', 2000);
@@ -185,16 +185,16 @@ function updateCard() {
       recog.maxAlternatives = 1;
       recognizing = true;
       recog.onresult = function(event) {
-        // 비교: 소문자+공백무시
-        const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g,'');
-        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g,'');
+        // 소문자, 공백 제거로 비교
+        const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
+        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
         if (said === answer) {
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
           setTimeout(() => {
             nextCard();
             document.getElementById("voiceHint").textContent = "";
-          }, 700);
+          }, 800);
         } else {
           document.getElementById("wrongSound").play();
           showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
