@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Flashcards from Google Sheets</title>
+  <title>플래시카드</title>
   <style>
     body {
       font-family: sans-serif;
@@ -75,6 +75,10 @@
       color: #666;
       margin-top: 10px;
     }
+    #resultBox {
+      margin-top: 30px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -88,7 +92,6 @@
     <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
-    <button onclick="startSpeechRecognition()" id="speechBtn">🎤 정답 말하기</button>
   </div>
   <div id="selfCheckBtns">
     <p>맞았나요?</p>
@@ -96,16 +99,13 @@
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
   <div id="messageBox"></div>
-  <audio id="ding" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="correctSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 
   <script>
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
-    let originalCards = [];
-    let cards = [];
-    let current = 0;
-    let showingFront = true;
-    let wrongCards = [];
-    let useSpeech = false;
+    let originalCards = [], cards = [], wrongCards = [];
+    let current = 0, showingFront = true, useSpeech = false;
 
     async function loadCards() {
       const response = await fetch(SHEET_URL);
@@ -121,15 +121,9 @@
     function resetToFullDeck() {
       cards = [...originalCards];
       shuffle(cards);
-      current = 0;
       wrongCards = [];
+      current = 0;
       updateCard();
-    }
-
-    function speak(text, lang) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      speechSynthesis.speak(utterance);
     }
 
     function shuffle(array) {
@@ -139,17 +133,10 @@
       }
     }
 
-    function showInlineMessage(msg) {
-      const box = document.getElementById("inlineMessage");
-      box.textContent = msg;
-      box.style.display = 'block';
-      setTimeout(() => box.style.display = 'none', 2000);
-    }
-
-    function showMessage(msg) {
-      const box = document.getElementById("messageBox");
-      box.textContent = msg;
-      box.style.display = 'block';
+    function speak(text, lang) {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      speechSynthesis.speak(utter);
     }
 
     function updateCard() {
@@ -195,22 +182,14 @@
         updateCard();
       } else {
         const correct = cards.length - wrongCards.length;
-        let msg = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!`;
-        if (wrongCards.length === 0) msg += " 🎉 전부 맞았습니다!";
-        showMessage(msg);
-
-        setTimeout(() => {
-          const again = confirm("틀린 카드만 다시 보기? (취소하면 전체 다시 시작)");
-          if (again && wrongCards.length > 0) {
-            cards = [...wrongCards];
-            shuffle(cards);
-            wrongCards = [];
-            current = 0;
-            updateCard();
-          } else {
-            resetToFullDeck();
-          }
-        }, 500);
+        const resultBox = document.createElement('div');
+        resultBox.id = "resultBox";
+        resultBox.innerHTML = `
+          <p>✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!</p>
+          <button onclick="retryWrong()">틀린 것만 다시하기</button>
+          <button onclick="retryAll()">전체 다시하기</button>
+        `;
+        document.body.appendChild(resultBox);
       }
     }
 
@@ -219,43 +198,71 @@
       updateCard();
     }
 
-    function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window)) {
-        showInlineMessage('❗ 음성 인식 미지원 브라우저');
-        useSpeech = false;
-        return;
+    function retryWrong() {
+      if (wrongCards.length > 0) {
+        cards = [...wrongCards];
+        shuffle(cards);
+        wrongCards = [];
+        current = 0;
+        updateCard();
       }
+      document.getElementById("resultBox")?.remove();
+    }
 
-      useSpeech = true;
-      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
-      const recognition = new webkitSpeechRecognition();
-      recognition.lang = 'ko-KR';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+    function retryAll() {
+      resetToFullDeck();
+      document.getElementById("resultBox")?.remove();
+    }
 
-      recognition.onresult = function(event) {
-        const speechResult = event.results[0][0].transcript.trim();
-        const correctAnswer = cards[current].back.trim();
-        if (speechResult === correctAnswer) {
-          document.getElementById("ding").play();
-          showInlineMessage(`✅ 정답! (${speechResult})`);
+    function showInlineMessage(msg) {
+      const box = document.getElementById("inlineMessage");
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(() => box.style.display = 'none', 2000);
+    }
+
+    function startSpeechRecognition() {
+      if (!('webkitSpeechRecognition' in window)) return;
+      const recog = new webkitSpeechRecognition();
+      recog.lang = 'ko-KR';
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+
+      recog.onresult = function(event) {
+        const said = event.results[0][0].transcript.trim();
+        const answer = cards[current].back.trim();
+        if (said === answer) {
+          document.getElementById("correctSound").play();
+          showInlineMessage(`✅ 정답! (${said})`);
           nextCard();
         } else {
-          showInlineMessage(`❌ '${speechResult}' → 정답: ${correctAnswer}`);
+          document.getElementById("wrongSound").play();
+          showInlineMessage(`❌ ${said} → 정답: ${answer}`);
           markWrong();
         }
       };
 
-      recognition.onerror = function(event) {
-        showInlineMessage('❗ 음성 인식 오류: 다시 눌러주세요.');
-        document.getElementById("voiceHint").textContent = "❗ 음성 인식 실패. 다시 눌러주세요.";
+      recog.onerror = function() {
+        showInlineMessage("❗ 음성 인식 실패");
+        document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
       };
 
-      recognition.onend = function() {
+      recog.onend = function() {
         document.getElementById("voiceHint").textContent = "";
       };
 
-      recognition.start();
+      recog.start();
+    }
+
+    if ('webkitSpeechRecognition' in window) {
+      useSpeech = true;
+      setInterval(() => {
+        if (useSpeech && showingFront) {
+          startSpeechRecognition();
+        }
+      }, 1500);
+    } else {
+      useSpeech = false;
     }
 
     const card = document.getElementById("card");
