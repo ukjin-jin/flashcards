@@ -85,10 +85,13 @@
 
     function speak(text, lang) {
       if (!window.speechSynthesis) return;
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = lang;
+      // 첫 번째 유저 액션(예: 카드 클릭, 버튼 클릭)이 있어야 소리 가능!
       window.speechSynthesis.cancel();
-      setTimeout(() => { window.speechSynthesis.speak(utter); }, 120);
+      setTimeout(() => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = lang;
+        window.speechSynthesis.speak(utter);
+      }, 220);
     }
 
     function updateCard() {
