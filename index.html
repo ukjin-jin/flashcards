@@ -5,25 +5,27 @@
   <title>Flashcards</title>
   <style>
     body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
-    .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 50px 20px; margin: 20px auto; width: 300px; font-size: 24px; cursor: pointer; position: relative;}
-    .message-overlay { position: absolute; top: -30px; background: #fff3cd; color: #856404; padding: 6px 14px; border-radius: 8px; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: none;}
-    .buttons button { margin: 6px; padding: 10px 20px; font-size: 16px;}
-    .counter { margin-top: 10px; font-size: 18px;}
+    h2 { margin-bottom: 6px; }
+    .card { background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); padding: 50px 20px; margin: 25px auto 10px; width: 350px; font-size: 28px; cursor: pointer; position: relative;}
+    .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
+    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition:.1s; cursor:pointer;}
+    .buttons button:hover {background:#f2f2f2;}
+    .counter { margin-top: 8px; font-size: 20px; color:#666;}
     #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
-    #resultBox { margin-top: 30px; font-size: 18px;}
-    .randbox { margin-bottom: 10px; font-size: 16px; }
+    #resultBox { margin-top: 36px; font-size: 19px;}
+    .randbox { margin-bottom: 10px; font-size: 16px;}
+    input[type=checkbox]{width:18px;height:18px;vertical-align:-3px;}
+    @media (max-width:480px) {
+      .card{width:95vw;font-size:20px;padding:32px 2vw;}
+    }
   </style>
 </head>
 <body>
-  <h2>🧠 Flashcard 학습</h2>
+  <h2>🧠 <b>Flashcard 학습</b></h2>
   <div class="randbox">
-    <label>
-      <input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제
-    </label>
+    <label><input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제</label>
     &nbsp;&nbsp;
-    <label>
-      <input type="checkbox" id="engFirstChk" checked> 영어 체크
-    </label>
+    <label><input type="checkbox" id="engFirstChk" checked> 영어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">Loading...
@@ -42,7 +44,6 @@
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
   <div id="resultBox"></div>
-  <audio id="correctSound" src=""></audio>
   <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
   <script>
     let recognizing = false;
@@ -51,7 +52,6 @@
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
 
-    // true면 영어->한글, false면 한글->영어
     function isEngFirst() {
       return document.getElementById("engFirstChk").checked;
     }
@@ -69,9 +69,7 @@
 
     function resetToFullDeck() {
       cards = [...originalCards];
-      if (document.getElementById("randomModeChk").checked) {
-        shuffle(cards);
-      }
+      if (document.getElementById("randomModeChk").checked) shuffle(cards);
       wrongCards = [];
       current = 0;
       updateCard();
@@ -100,7 +98,8 @@
       const cardElem = document.getElementById("card");
       cardElem.textContent = content;
       cardElem.appendChild(document.getElementById("inlineMessage"));
-      document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
+      // 진행상황 항상 출력
+      document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
       speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
@@ -143,6 +142,7 @@
         updateCard();
       } else {
         const correct = cards.length - wrongCards.length;
+        document.getElementById("counter").textContent = `문제 ${cards.length} / ${cards.length}`;
         document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!<br><br>
           <button onclick="retryWrong()">틀린 것만 다시하기</button>
           <button onclick="resetToFullDeck()">전체 다시하기</button>`;
@@ -157,9 +157,7 @@
     function retryWrong() {
       if (wrongCards.length > 0) {
         cards = [...wrongCards];
-        if (document.getElementById("randomModeChk").checked) {
-          shuffle(cards);
-        }
+        if (document.getElementById("randomModeChk").checked) shuffle(cards);
         wrongCards = [];
         current = 0;
         updateCard();
@@ -175,44 +173,44 @@
     }
 
     function startSpeechRecognition() {
-       if (!('webkitSpeechRecognition' in window) || recognizing) return;
-  const recog = new webkitSpeechRecognition();
-  recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
-  recog.interimResults = false;
-  recog.maxAlternatives = 1;
-  recognizing = true;
-  recog.onresult = function(event) {
-    const said = event.results[0][0].transcript.trim().toLowerCase();
-    const answer = (isEngFirst() ? cards[current].back.trim() : cards[current].front.trim()).toLowerCase();
-    // 알파벳/한글 기준, 모든 공백 제거도 옵션 가능
-    if (said.replace(/\s/g, '') === answer.replace(/\s/g, '')) {
-      showInlineMessage(`✅ 정답! (${event.results[0][0].transcript})`);
-      recognizing = false;
-      setTimeout(() => {
-        nextCard();
+      if (!('webkitSpeechRecognition' in window) || recognizing) return;
+      const recog = new webkitSpeechRecognition();
+      recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+      recognizing = true;
+      recog.onresult = function(event) {
+        // 비교: 소문자+공백무시
+        const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g,'');
+        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g,'');
+        if (said === answer) {
+          showInlineMessage(`✅ 정답!`);
+          recognizing = false;
+          setTimeout(() => {
+            nextCard();
+            document.getElementById("voiceHint").textContent = "";
+          }, 700);
+        } else {
+          document.getElementById("wrongSound").play();
+          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
+          recognizing = false;
+          setTimeout(() => {
+            markWrong();
+            document.getElementById("voiceHint").textContent = "";
+          }, 1100);
+        }
+      };
+      recog.onerror = function() {
+        showInlineMessage("❗ 음성 인식 실패");
+        document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
+        recognizing = false;
+      };
+      recog.onend = function() {
+        recognizing = false;
         document.getElementById("voiceHint").textContent = "";
-      }, 800);
-    } else {
-      document.getElementById("wrongSound").play();
-      showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${answer}`);
-      recognizing = false;
-      setTimeout(() => {
-        markWrong();
-        document.getElementById("voiceHint").textContent = "";
-      }, 1000);
-    }
-  };
-  recog.onerror = function() {
-    showInlineMessage("❗ 음성 인식 실패");
-    document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
-    recognizing = false;
-  };
-  recog.onend = function() {
-    recognizing = false;
-    document.getElementById("voiceHint").textContent = "";
-  };
-  recog.start();
-  document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
+      };
+      recog.start();
+      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
     }
 
     if ('webkitSpeechRecognition' in window) {
@@ -225,7 +223,6 @@
       if (speechBtn) speechBtn.style.display = "none";
     }
 
-    // 옵션 변경 시 즉시 반영
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
       document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
