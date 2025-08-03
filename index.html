@@ -48,11 +48,27 @@
       display: none;
       margin-top: 10px;
     }
+    #messageBox {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
+      background: #fff8d6;
+      padding: 10px 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      display: none;
+    }
+    #voiceHint {
+      font-size: 16px;
+      color: #666;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="card" id="card" onclick="flipCard()">Loading...</div>
   <div class="counter" id="counter"></div>
+  <div id="voiceHint"></div>
   <div class="buttons">
     <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
@@ -64,9 +80,12 @@
     <button onclick="markCorrectSelf()">⭕ 맞았음</button>
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
+  <div id="messageBox"></div>
+  <audio id="ding" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
   <script>
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
+    let originalCards = [];
     let cards = [];
     let current = 0;
     let showingFront = true;
@@ -77,11 +96,18 @@
       const response = await fetch(SHEET_URL);
       const text = await response.text();
       const rows = text.trim().split("\n").slice(1);
-      cards = rows.map(row => {
+      originalCards = rows.map(row => {
         const [front, back] = row.split(",");
         return { front: front.trim(), back: back.trim() };
       });
+      resetToFullDeck();
+    }
+
+    function resetToFullDeck() {
+      cards = [...originalCards];
       shuffle(cards);
+      current = 0;
+      wrongCards = [];
       updateCard();
     }
 
@@ -98,6 +124,13 @@
       }
     }
 
+    function showMessage(msg) {
+      const box = document.getElementById("messageBox");
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(() => box.style.display = 'none', 3000);
+    }
+
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
@@ -106,6 +139,7 @@
       speak(content, "en-US");
       document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
       document.getElementById("selfCheckBtns").style.display = 'none';
+      document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
     }
 
     function flipCard() {
@@ -132,26 +166,29 @@
 
     function nextCard() {
       document.getElementById("selfCheckBtns").style.display = 'none';
+      document.getElementById("voiceHint").textContent = "";
       if (current < cards.length - 1) {
         current++;
         updateCard();
       } else {
         const correct = cards.length - wrongCards.length;
-        let message = `모든 카드를 다 봤어요!\n\n✅ 맞은 개수: ${correct}\n❌ 틀린 개수: ${wrongCards.length}`;
-        if (wrongCards.length === 0) {
-          message += "\n\n🎉 모든 문제를 맞추셨어요!";
-        }
-        message += "\n\n틀린 카드만 다시 보기? (취소를 누르면 전체 다시 시작합니다.)";
+        let msg = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!`;
+        if (wrongCards.length === 0) msg += " 🎉 전부 맞았습니다!";
+        showMessage(msg);
 
-        const again = confirm(message);
-        if (again && wrongCards.length > 0) {
-          cards = [...wrongCards];
-        } else {
-          shuffle(cards);
-        }
-        wrongCards = [];
-        current = 0;
-        updateCard();
+        setTimeout(() => {
+          const again = confirm("틀린 카드만 다시 보기? (취소하면 전체 다시 시작)");
+          if (again && wrongCards.length > 0) {
+            cards = [...wrongCards];
+            shuffle(cards);
+          } else {
+            resetToFullDeck();
+            return;
+          }
+          wrongCards = [];
+          current = 0;
+          updateCard();
+        }, 500);
       }
     }
 
@@ -162,12 +199,13 @@
 
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window)) {
-        alert('이 브라우저는 음성 인식을 지원하지 않습니다. 눌러서 정답을 확인하고 직접 맞았는지 선택해주세요.');
+        showMessage('❗ 이 브라우저는 음성 인식을 지원하지 않아요.');
         useSpeech = false;
         return;
       }
 
       useSpeech = true;
+      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
       const recognition = new webkitSpeechRecognition();
       recognition.lang = 'ko-KR';
       recognition.interimResults = false;
@@ -177,16 +215,22 @@
         const speechResult = event.results[0][0].transcript.trim();
         const correctAnswer = cards[current].back.trim();
         if (speechResult === correctAnswer) {
-          alert(`✅ 정답! (${speechResult})`);
+          document.getElementById("ding").play();
+          showMessage(`✅ 정답! (${speechResult})`);
           nextCard();
         } else {
-          alert(`❌ 틀렸어요. 말한 것: ${speechResult}\n정답: ${correctAnswer}`);
+          showMessage(`❌ '${speechResult}' → 정답: ${correctAnswer}`);
           markWrong();
         }
       };
 
       recognition.onerror = function(event) {
-        alert('음성 인식 오류: ' + event.error);
+        showMessage('음성 인식 오류: ' + event.error + '\n다시 "정답 말하기" 버튼을 눌러주세요.');
+        document.getElementById("voiceHint").textContent = "❗ 음성 인식 실패. 다시 눌러주세요.";
+      };
+
+      recognition.onend = function() {
+        document.getElementById("voiceHint").textContent = "";
       };
 
       recognition.start();
