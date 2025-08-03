@@ -258,9 +258,23 @@
       }
       return costs[b.length];
     }
+
+    // 동의어/반복발음/오타 모두 허용
     function isAnswerCorrect(said, answer) {
-      if (said === answer) return true;
-      if (getEditDistance(said, answer) <= 1) return true;
+      const answerList = answer.split(",").map(v => v.trim().toLowerCase());
+      for (let candidate of answerList) {
+        // 정확 일치
+        if (said === candidate) return true;
+        // 반복 발음(한글, 영어 모두): candidate가 반복적으로 이어져 있는지 확인
+        // ex: 쌀쌀, 쌀쌀쌀, fishfish, fishfishfish, rice rice, rice rice rice, etc.
+        // (공백도 제거하고 비교)
+        let compactSaid = said.replace(/\s/g, '');
+        let compactCand = candidate.replace(/\s/g, '');
+        const pattern = new RegExp(`^(${compactCand})+$`);
+        if (pattern.test(compactSaid)) return true;
+        // 오타 1글자까지 허용
+        if (getEditDistance(said, candidate) <= 1) return true;
+      }
       return false;
     }
 
