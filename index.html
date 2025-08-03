@@ -75,15 +75,16 @@
   <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 
   <script>
+    let recognizing = false;
+    let useSpeech = false;
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
-    let current = 0, showingFront = true, useSpeech = false;
-    let recognizing = false;
+    let current = 0, showingFront = true;
 
     async function loadCards() {
       const response = await fetch(SHEET_URL);
       const text = await response.text();
-      const rows = text.trim().split("\n").slice(1);
+      const rows = text.trim().split("\\n").slice(1);
       originalCards = rows.map(row => {
         const [front, back] = row.split(",");
         return { front: front.trim(), back: back.trim() };
@@ -196,7 +197,7 @@
       recog.maxAlternatives = 1;
       recognizing = true;
 
-      recog.onresult = function(event) {
+      recog.onresult = function (event) {
         const said = event.results[0][0].transcript.trim();
         const answer = cards[current].back.trim();
         if (said === answer) {
@@ -210,12 +211,12 @@
         }
       };
 
-      recog.onerror = function() {
+      recog.onerror = function () {
         showInlineMessage("❗ 음성 인식 실패");
         document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
       };
 
-      recog.onend = function() {
+      recog.onend = function () {
         recognizing = false;
         document.getElementById("voiceHint").textContent = "";
       };
