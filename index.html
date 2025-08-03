@@ -28,7 +28,8 @@
     <label><input type="checkbox" id="engFirstChk" checked> 영어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
-  <div class="card" id="card" onclick="flipCard()">Loading...
+  <div class="card" id="card" onclick="flipCard()">
+    <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
   <div id="voiceHint"></div>
@@ -47,7 +48,7 @@
   <script>
     let recognizing = false;
     let useSpeech = false;
-    let alreadySpoken = false; // 카드별 "단어 읽기" 여부
+    let alreadySpoken = false;
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
@@ -100,13 +101,10 @@
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      alreadySpoken = false; // 카드 바뀔 때마다 1회 읽기 가능!
+      alreadySpoken = false;
       let content = isEngFirst() ? cards[current].front : cards[current].back;
-      const cardElem = document.getElementById("card");
-      cardElem.textContent = content;
-      const inlineMsg = document.getElementById("inlineMessage");
-      if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
-
+      document.getElementById("cardText").textContent = content;
+      // 메시지 오버레이는 덮어쓰기 피해 별도 유지
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
 
@@ -116,6 +114,7 @@
       speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
+      hideInlineMessage();
     }
 
     function flipCard() {
@@ -128,15 +127,13 @@
         ? (isEngFirst() ? "ko-KR" : "en-US")
         : (isEngFirst() ? "en-US" : "ko-KR");
 
-      const cardElem = document.getElementById("card");
-      cardElem.textContent = content;
-      const inlineMsg = document.getElementById("inlineMessage");
-      if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
+      document.getElementById("cardText").textContent = content;
       speak(content, lang);
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
       }
+      hideInlineMessage();
     }
 
     function markWrong() {
@@ -151,6 +148,7 @@
     function nextCard() {
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
+      hideInlineMessage();
       if (current < cards.length - 1) {
         current++;
         updateCard();
@@ -185,15 +183,20 @@
       if (!box) return;
       box.textContent = msg;
       box.style.display = 'block';
-      setTimeout(() => box.style.display = 'none', 2000);
+      if (box.timer) clearTimeout(box.timer);
+      box.timer = setTimeout(() => { box.style.display = 'none'; }, 2000);
+    }
+    function hideInlineMessage() {
+      const box = document.getElementById("inlineMessage");
+      if (box) box.style.display = 'none';
     }
 
     // "정답 말하기" 버튼 누르면: 카드별 최초 1회만 읽고, 그 이후엔 바로 인식
     function speakAndStartRecognition() {
       if (!alreadySpoken) {
+        alreadySpoken = true;
         let content = isEngFirst() ? cards[current].front : cards[current].back;
         let lang = isEngFirst() ? "en-US" : "ko-KR";
-        alreadySpoken = true;
         speak(content, lang, startSpeechRecognition);
       } else {
         startSpeechRecognition();
