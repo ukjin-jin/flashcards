@@ -99,13 +99,18 @@
       let content = isEngFirst() ? cards[current].front : cards[current].back;
       const cardElem = document.getElementById("card");
       cardElem.textContent = content;
-      // 안전하게 메시지 DOM만 붙이기
       const inlineMsg = document.getElementById("inlineMessage");
       if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
-      document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
+
+      // 현재까지 맞은 개수는 현재까지 푼 카드 - 틀린 개수
+      const solved = current + 1;
+      const correctSoFar = solved - wrongCards.length;
+      document.getElementById("counter").innerHTML =
+        `문제 ${solved} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
+
       speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
+      document.getElementById("voiceHint").textContent = ""; // 항상 기본적으로 안 보이게
     }
 
     function flipCard() {
@@ -146,7 +151,8 @@
         updateCard();
       } else {
         const correct = cards.length - wrongCards.length;
-        document.getElementById("counter").textContent = `문제 ${cards.length} / ${cards.length}`;
+        document.getElementById("counter").innerHTML =
+          `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrongCards.length}`;
         document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!<br><br>
           <button onclick="retryWrong()">틀린 것만 다시하기</button>
           <button onclick="resetToFullDeck()">전체 다시하기</button>`;
@@ -179,13 +185,16 @@
 
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window) || recognizing) return;
+      recognizing = true;
       const recog = new webkitSpeechRecognition();
       recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
       recog.interimResults = false;
       recog.maxAlternatives = 1;
-      recognizing = true;
+
+      // 이때만 말하세요 보여줌!
+      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
+
       recog.onresult = function(event) {
-        // 소문자, 공백 제거로 비교
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
         const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
         if (said === answer) {
@@ -207,7 +216,7 @@
       };
       recog.onerror = function() {
         showInlineMessage("❗ 음성 인식 실패");
-        document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
+        document.getElementById("voiceHint").textContent = "";
         recognizing = false;
       };
       recog.onend = function() {
@@ -215,7 +224,6 @@
         document.getElementById("voiceHint").textContent = "";
       };
       recog.start();
-      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
     }
 
     if ('webkitSpeechRecognition' in window) {
