@@ -48,7 +48,7 @@
   <script>
     let recognizing = false;
     let useSpeech = false;
-    let alreadySpoken = false; // ***페이지 전체에서 딱 1회만 true로 바뀜***
+    let alreadySpoken = false; // 세션 전체에서 단 1회만 단어 읽기
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
@@ -189,7 +189,41 @@
       if (box) box.style.display = 'none';
     }
 
-    // "정답 말하기" 버튼 누르면: ***페이지 전체에서 최초 1회만*** 읽고, 이후엔 바로 인식
+    // 레벤슈타인(최소 편집 거리) 함수
+    function getEditDistance(a, b) {
+      a = a.toLowerCase();
+      b = b.toLowerCase();
+      let costs = [];
+      for (let i = 0; i <= a.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= b.length; j++) {
+          if (i === 0)
+            costs[j] = j;
+          else {
+            if (j > 0) {
+              let newValue = costs[j - 1];
+              if (a.charAt(i - 1) !== b.charAt(j - 1))
+                newValue = Math.min(Math.min(newValue, lastValue),
+                  costs[j]) + 1;
+              costs[j - 1] = lastValue;
+              lastValue = newValue;
+            }
+          }
+        }
+        if (i > 0)
+          costs[b.length] = lastValue;
+      }
+      return costs[b.length];
+    }
+
+    // 유사도 판정: 1글자 이내 오타 허용
+    function isAnswerCorrect(said, answer) {
+      if (said === answer) return true;
+      if (getEditDistance(said, answer) <= 1) return true;
+      return false;
+    }
+
+    // 정답 말하기 버튼: 세션 전체에서 1번만 읽기
     function speakAndStartRecognition() {
       if (!alreadySpoken) {
         alreadySpoken = true;
@@ -201,7 +235,6 @@
       }
     }
 
-    // 실제로 마이크로 입력 받기
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window) || recognizing) return;
       recognizing = true;
@@ -215,7 +248,7 @@
       recog.onresult = function(event) {
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
         const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
-        if (said === answer) {
+        if (isAnswerCorrect(said, answer)) {
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
           setTimeout(() => {
