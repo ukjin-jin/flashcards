@@ -4,56 +4,23 @@
   <meta charset="UTF-8">
   <title>Flashcards</title>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      background: #f8f8f8;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      padding: 50px 20px;
-      margin: 20px auto;
-      width: 300px;
-      font-size: 24px;
-      cursor: pointer;
-      position: relative;
-    }
-    .message-overlay {
-      position: absolute;
-      top: -30px;
-      background: #fff3cd;
-      color: #856404;
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      display: none;
-    }
-    .buttons button {
-      margin: 6px;
-      padding: 10px 20px;
-      font-size: 16px;
-    }
-    .counter {
-      margin-top: 10px;
-      font-size: 18px;
-    }
-    #voiceHint {
-      margin-top: 8px;
-      font-size: 16px;
-      color: #777;
-    }
-    #resultBox {
-      margin-top: 30px;
-      font-size: 18px;
-    }
+    body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
+    .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 50px 20px; margin: 20px auto; width: 300px; font-size: 24px; cursor: pointer; position: relative;}
+    .message-overlay { position: absolute; top: -30px; background: #fff3cd; color: #856404; padding: 6px 14px; border-radius: 8px; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: none;}
+    .buttons button { margin: 6px; padding: 10px 20px; font-size: 16px;}
+    .counter { margin-top: 10px; font-size: 18px;}
+    #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
+    #resultBox { margin-top: 30px; font-size: 18px;}
+    .randbox { margin-bottom: 10px; font-size: 16px; }
   </style>
 </head>
 <body>
   <h2>🧠 Flashcard 학습</h2>
+  <div class="randbox">
+    <label>
+      <input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제
+    </label>
+  </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">Loading...
     <div class="message-overlay" id="inlineMessage"></div>
@@ -93,7 +60,10 @@
 
     function resetToFullDeck() {
       cards = [...originalCards];
-      shuffle(cards);
+      // ✅ 랜덤 체크박스에 따라 셔플 여부 결정
+      if (document.getElementById("randomModeChk").checked) {
+        shuffle(cards);
+      }
       wrongCards = [];
       current = 0;
       updateCard();
@@ -112,7 +82,7 @@
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang;
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
+      setTimeout(() => { window.speechSynthesis.speak(utter); }, 120);
     }
 
     function updateCard() {
@@ -172,7 +142,10 @@
     function retryWrong() {
       if (wrongCards.length > 0) {
         cards = [...wrongCards];
-        shuffle(cards);
+        // 틀린 것만 복습할 때도 무작위 모드 적용
+        if (document.getElementById("randomModeChk").checked) {
+          shuffle(cards);
+        }
         wrongCards = [];
         current = 0;
         updateCard();
@@ -230,6 +203,11 @@
       const speechBtn = document.getElementById("speechBtn");
       if (speechBtn) speechBtn.style.display = "none";
     }
+
+    // 무작위 체크박스 변경 시 현재 문제 셋 재시작
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
+    });
 
     loadCards();
   </script>
