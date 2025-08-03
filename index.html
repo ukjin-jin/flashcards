@@ -48,7 +48,7 @@
   <script>
     let recognizing = false;
     let useSpeech = false;
-    let alreadySpoken = false;
+    let alreadySpoken = false; // ***페이지 전체에서 딱 1회만 true로 바뀜***
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
@@ -101,10 +101,8 @@
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      alreadySpoken = false;
       let content = isEngFirst() ? cards[current].front : cards[current].back;
       document.getElementById("cardText").textContent = content;
-      // 메시지 오버레이는 덮어쓰기 피해 별도 유지
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
 
@@ -191,7 +189,7 @@
       if (box) box.style.display = 'none';
     }
 
-    // "정답 말하기" 버튼 누르면: 카드별 최초 1회만 읽고, 그 이후엔 바로 인식
+    // "정답 말하기" 버튼 누르면: ***페이지 전체에서 최초 1회만*** 읽고, 이후엔 바로 인식
     function speakAndStartRecognition() {
       if (!alreadySpoken) {
         alreadySpoken = true;
