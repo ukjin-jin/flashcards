@@ -94,19 +94,20 @@
       }, 220);
     }
 
-    function updateCard() {
-      if (cards.length === 0) return;
-      showingFront = true;
-      let content = isEngFirst() ? cards[current].front : cards[current].back;
-      const cardElem = document.getElementById("card");
-      cardElem.textContent = content;
-      cardElem.appendChild(document.getElementById("inlineMessage"));
-      // 진행상황 항상 출력
-      document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
-      speak(content, isEngFirst() ? "en-US" : "ko-KR");
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
-    }
+   function updateCard() {
+  if (cards.length === 0) return;
+  showingFront = true;
+  let content = isEngFirst() ? cards[current].front : cards[current].back;
+  const cardElem = document.getElementById("card");
+  cardElem.textContent = content;
+  const inlineMsg = document.getElementById("inlineMessage");
+  if (inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
+  document.getElementById("counter").textContent = `문제 ${current + 1} / ${cards.length}`;
+  speak(content, isEngFirst() ? "en-US" : "ko-KR");
+  document.getElementById("selfCheckBtns").style.display = 'none';
+  document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
+}
+
 
     function flipCard() {
       if (cards.length === 0) return;
