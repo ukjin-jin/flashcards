@@ -313,3 +313,45 @@
             hideInlineMessage();
             showAnswerThenNextCard();
             document.getElementById("voiceHint").textContent = "";
+          }, 800);
+        } else {
+          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
+          recognizing = false;
+          setTimeout(() => {
+            hideInlineMessage();
+            markWrongAndShowAnswer();
+            document.getElementById("voiceHint").textContent = "";
+          }, 1100);
+        }
+      };
+      recog.onerror = function() {
+        showInlineMessage("❗ 음성 인식 실패");
+        document.getElementById("voiceHint").textContent = "";
+        recognizing = false;
+      };
+      recog.onend = function() {
+        recognizing = false;
+        document.getElementById("voiceHint").textContent = "";
+      };
+      recog.start();
+    }
+
+    if ('webkitSpeechRecognition' in window) {
+      useSpeech = true;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "inline-block";
+    } else {
+      useSpeech = false;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "none";
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
+      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
+    });
+
+    loadCards();
+  </script>
+</body>
+</html>
