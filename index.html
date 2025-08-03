@@ -44,11 +44,10 @@
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
   <div id="resultBox"></div>
-  <audio id="rightSound" src="https://cdn.jsdelivr.net/gh/ukjinjin/sfx/dingdong.ogg"></audio>
-  <audio id="wrongSound" src="https://cdn.jsdelivr.net/gh/ukjinjin/sfx/wrong.ogg"></audio>
   <script>
     let recognizing = false;
     let useSpeech = false;
+    let alreadySpoken = false; // 카드별 "단어 읽기" 여부
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
@@ -101,13 +100,13 @@
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
+      alreadySpoken = false; // 카드 바뀔 때마다 1회 읽기 가능!
       let content = isEngFirst() ? cards[current].front : cards[current].back;
       const cardElem = document.getElementById("card");
       cardElem.textContent = content;
       const inlineMsg = document.getElementById("inlineMessage");
       if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
 
-      // 실시간 맞춘개수(0부터 시작)
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
 
@@ -116,7 +115,7 @@
 
       speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = ""; // 항상 기본적으로 안 보이게
+      document.getElementById("voiceHint").textContent = "";
     }
 
     function flipCard() {
@@ -189,12 +188,16 @@
       setTimeout(() => box.style.display = 'none', 2000);
     }
 
-    // 정답 말하기 버튼 누르면
+    // "정답 말하기" 버튼 누르면: 카드별 최초 1회만 읽고, 그 이후엔 바로 인식
     function speakAndStartRecognition() {
-      // 카드의 영어/한글 먼저 읽기, 그 후 음성인식
-      let content = isEngFirst() ? cards[current].front : cards[current].back;
-      let lang = isEngFirst() ? "en-US" : "ko-KR";
-      speak(content, lang, startSpeechRecognition);
+      if (!alreadySpoken) {
+        let content = isEngFirst() ? cards[current].front : cards[current].back;
+        let lang = isEngFirst() ? "en-US" : "ko-KR";
+        alreadySpoken = true;
+        speak(content, lang, startSpeechRecognition);
+      } else {
+        startSpeechRecognition();
+      }
     }
 
     // 실제로 마이크로 입력 받기
@@ -212,7 +215,6 @@
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
         const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
         if (said === answer) {
-          document.getElementById("rightSound").play();
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
           setTimeout(() => {
@@ -220,7 +222,6 @@
             document.getElementById("voiceHint").textContent = "";
           }, 800);
         } else {
-          document.getElementById("wrongSound").play();
           showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
           recognizing = false;
           setTimeout(() => {
