@@ -8,7 +8,7 @@
     h2 { margin-bottom: 6px; }
     .card { background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); padding: 50px 20px; margin: 25px auto 10px; width: 350px; font-size: 28px; cursor: pointer; position: relative;}
     .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
-    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition:.1s; cursor:pointer;}
+    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition: .1s; cursor:pointer;}
     .buttons button:hover {background:#f2f2f2;}
     .counter { margin-top: 8px; font-size: 20px; color:#666;}
     #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
@@ -64,7 +64,7 @@
     let recognizing = false;
     let useSpeech = false;
     let alreadySpoken = false;
-    let showingFront = true; // 카드 앞면/뒷면 상태 저장
+    let showingFront = true;
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0;
@@ -118,10 +118,10 @@
     function speakCurrentCard() {
       let text, lang;
       if (showingFront) {
-        text = isEngFirst() ? cards[current].front : cards[current].back;
+        text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
         lang = isEngFirst() ? "en-US" : "ko-KR";
       } else {
-        text = isEngFirst() ? cards[current].back : cards[current].front;
+        text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
         lang = isEngFirst() ? "ko-KR" : "en-US";
       }
       speak(text, lang);
@@ -130,7 +130,7 @@
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      let content = isEngFirst() ? cards[current].front : cards[current].back;
+      let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
@@ -146,14 +146,14 @@
 
     function flipCard() {
       if (cards.length === 0) return;
-      let content = showingFront
-        ? (isEngFirst() ? cards[current].back : cards[current].front)
-        : (isEngFirst() ? cards[current].front : cards[current].back);
-
-      const lang = showingFront
-        ? (isEngFirst() ? "ko-KR" : "en-US")
-        : (isEngFirst() ? "en-US" : "ko-KR");
-
+      let content, lang;
+      if (showingFront) {
+        content = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        lang = isEngFirst() ? "ko-KR" : "en-US";
+      } else {
+        content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        lang = isEngFirst() ? "en-US" : "ko-KR";
+      }
       document.getElementById("cardText").textContent = content;
       speak(content, lang);
       showingFront = !showingFront;
@@ -218,7 +218,7 @@
 
     // (핵심) 정답/오답 후 답(뒤집힌 카드) 보여주고 다음 카드로 자동
     function showAnswerThenNextCard() {
-      let answerText = isEngFirst() ? cards[current].back : cards[current].front;
+      let answerText = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
       document.getElementById("cardText").textContent = answerText;
       speak(answerText, isEngFirst() ? "ko-KR" : "en-US");
       showingFront = false;
@@ -230,6 +230,11 @@
     function markWrongAndShowAnswer() {
       wrongCards.push(cards[current]);
       showAnswerThenNextCard();
+    }
+
+    // 동의어 중 첫 번째만 반환
+    function getFirstAnswer(ansStr) {
+      return ansStr.split(/,|，/)[0].trim();
     }
 
     // 레벤슈타인(최소 편집 거리) 함수
@@ -259,15 +264,12 @@
       return costs[b.length];
     }
 
-    // 동의어/반복발음/오타 모두 허용
+    // 동의어/반복발음/오타 모두 허용 + 쉼표, 중국식 쉼표 모두 분리
     function isAnswerCorrect(said, answer) {
-      const answerList = answer.split(",").map(v => v.trim().toLowerCase());
+      const answerList = answer.split(/,|，/).map(v => v.trim().toLowerCase());
       for (let candidate of answerList) {
-        // 정확 일치
         if (said === candidate) return true;
-        // 반복 발음(한글, 영어 모두): candidate가 반복적으로 이어져 있는지 확인
-        // ex: 쌀쌀, 쌀쌀쌀, fishfish, fishfishfish, rice rice, rice rice rice, etc.
-        // (공백도 제거하고 비교)
+        // 반복 발음(공백 제거)
         let compactSaid = said.replace(/\s/g, '');
         let compactCand = candidate.replace(/\s/g, '');
         const pattern = new RegExp(`^(${compactCand})+$`);
@@ -282,7 +284,7 @@
     function speakAndStartRecognition() {
       if (!alreadySpoken) {
         alreadySpoken = true;
-        let content = isEngFirst() ? cards[current].front : cards[current].back;
+        let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
         let lang = isEngFirst() ? "en-US" : "ko-KR";
         speak(content, lang, startSpeechRecognition);
       } else {
@@ -302,7 +304,7 @@
 
       recog.onresult = function(event) {
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
-        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase().replace(/\s/g, '');
+        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase();
         if (isAnswerCorrect(said, answer)) {
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
@@ -312,7 +314,7 @@
             document.getElementById("voiceHint").textContent = "";
           }, 800);
         } else {
-          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? cards[current].back : cards[current].front}`);
+          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
           recognizing = false;
           setTimeout(() => {
             hideInlineMessage();
