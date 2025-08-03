@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Live Flashcards from Google Sheets</title>
   <style>
     body {
@@ -29,6 +29,18 @@
       text-align: center;
       padding: 20px;
       transition: 0.3s;
+      position: relative;
+    }
+    .message-overlay {
+      position: absolute;
+      top: -30px;
+      background: #fff3cd;
+      color: #856404;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: none;
     }
     .buttons {
       margin-top: 20px;
@@ -66,7 +78,10 @@
   </style>
 </head>
 <body>
-  <div class="card" id="card" onclick="flipCard()">Loading...</div>
+  <div class="card" id="card" onclick="flipCard()">
+    Loading...
+    <div class="message-overlay" id="inlineMessage"></div>
+  </div>
   <div class="counter" id="counter"></div>
   <div id="voiceHint"></div>
   <div class="buttons">
@@ -124,11 +139,17 @@
       }
     }
 
+    function showInlineMessage(msg) {
+      const box = document.getElementById("inlineMessage");
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(() => box.style.display = 'none', 2000);
+    }
+
     function showMessage(msg) {
       const box = document.getElementById("messageBox");
       box.textContent = msg;
       box.style.display = 'block';
-      setTimeout(() => box.style.display = 'none', 3000);
     }
 
     function updateCard() {
@@ -136,6 +157,7 @@
       showingFront = true;
       const content = cards[current].front;
       card.textContent = content;
+      card.appendChild(document.getElementById("inlineMessage"));
       speak(content, "en-US");
       document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
       document.getElementById("selfCheckBtns").style.display = 'none';
@@ -146,6 +168,7 @@
       if (cards.length === 0) return;
       const content = showingFront ? cards[current].back : cards[current].front;
       card.textContent = content;
+      card.appendChild(document.getElementById("inlineMessage"));
       speak(content, showingFront ? "ko-KR" : "en-US");
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
@@ -181,13 +204,12 @@
           if (again && wrongCards.length > 0) {
             cards = [...wrongCards];
             shuffle(cards);
+            wrongCards = [];
+            current = 0;
+            updateCard();
           } else {
             resetToFullDeck();
-            return;
           }
-          wrongCards = [];
-          current = 0;
-          updateCard();
         }, 500);
       }
     }
@@ -199,7 +221,7 @@
 
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window)) {
-        showMessage('❗ 이 브라우저는 음성 인식을 지원하지 않아요.');
+        showInlineMessage('❗ 음성 인식 미지원 브라우저');
         useSpeech = false;
         return;
       }
@@ -216,16 +238,16 @@
         const correctAnswer = cards[current].back.trim();
         if (speechResult === correctAnswer) {
           document.getElementById("ding").play();
-          showMessage(`✅ 정답! (${speechResult})`);
+          showInlineMessage(`✅ 정답! (${speechResult})`);
           nextCard();
         } else {
-          showMessage(`❌ '${speechResult}' → 정답: ${correctAnswer}`);
+          showInlineMessage(`❌ '${speechResult}' → 정답: ${correctAnswer}`);
           markWrong();
         }
       };
 
       recognition.onerror = function(event) {
-        showMessage('음성 인식 오류: ' + event.error + '\n다시 "정답 말하기" 버튼을 눌러주세요.');
+        showInlineMessage('❗ 음성 인식 오류: 다시 눌러주세요.');
         document.getElementById("voiceHint").textContent = "❗ 음성 인식 실패. 다시 눌러주세요.";
       };
 
