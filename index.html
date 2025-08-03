@@ -75,10 +75,30 @@
       color: #666;
       margin-top: 10px;
     }
+    .voice-toggle {
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    .voice-toggle.off {
+      background: #dc3545;
+    }
+    #initVoice {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      padding: 15px 30px;
+      margin: 20px;
+    }
   </style>
 </head>
 <body>
-  <div class="card" id="card" onclick="flipCard()">
+  <button id="initVoice" onclick="initializeVoice()">🔊 음성 기능 시작하기</button>
+  
+  <div class="card" id="card" onclick="flipCard()" style="display: none;">
     Loading...
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
@@ -89,6 +109,7 @@
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="startSpeechRecognition()" id="speechBtn">🎤 정답 말하기</button>
+    <button id="voiceToggle" class="voice-toggle" onclick="toggleVoice()">🔊 음성 ON</button>
   </div>
   <div id="selfCheckBtns">
     <p>맞았나요?</p>
@@ -106,16 +127,54 @@
     let showingFront = true;
     let wrongCards = [];
     let useSpeech = false;
+    let voiceEnabled = false;
+    let voiceInitialized = false;
+
+    // 음성 기능 초기화 (사용자 상호작용 필요)
+    function initializeVoice() {
+      console.log('Initializing voice...');
+      
+      // 더미 음성으로 브라우저 권한 확보
+      const utterance = new SpeechSynthesisUtterance('');
+      utterance.volume = 0;
+      speechSynthesis.speak(utterance);
+      
+      voiceInitialized = true;
+      voiceEnabled = true;
+      
+      document.getElementById('initVoice').style.display = 'none';
+      document.getElementById('card').style.display = 'flex';
+      
+      loadCards();
+    }
+
+    // 음성 ON/OFF 토글
+    function toggleVoice() {
+      voiceEnabled = !voiceEnabled;
+      const btn = document.getElementById('voiceToggle');
+      if (voiceEnabled) {
+        btn.textContent = '🔊 음성 ON';
+        btn.className = 'voice-toggle';
+      } else {
+        btn.textContent = '🔇 음성 OFF';
+        btn.className = 'voice-toggle off';
+      }
+    }
 
     async function loadCards() {
-      const response = await fetch(SHEET_URL);
-      const text = await response.text();
-      const rows = text.trim().split("\n").slice(1);
-      originalCards = rows.map(row => {
-        const [front, back] = row.split(",");
-        return { front: front.trim(), back: back.trim() };
-      });
-      resetToFullDeck();
+      try {
+        const response = await fetch(SHEET_URL);
+        const text = await response.text();
+        const rows = text.trim().split("\n").slice(1);
+        originalCards = rows.map(row => {
+          const [front, back] = row.split(",");
+          return { front: front.trim(), back: back.trim() };
+        });
+        resetToFullDeck();
+      } catch (error) {
+        console.error('Loading cards failed:', error);
+        document.getElementById('card').textContent = 'Failed to load cards';
+      }
     }
 
     function resetToFullDeck() {
@@ -127,9 +186,30 @@
     }
 
     function speak(text, lang) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      speechSynthesis.speak(utterance);
+      if (!voiceInitialized || !voiceEnabled) {
+        console.log('Voice not initialized or disabled');
+        return;
+      }
+
+      // 음성 큐 초기화
+      speechSynthesis.cancel();
+      
+      setTimeout(() => {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang;
+          utterance.rate = 0.9;
+          utterance.pitch = 1.0;
+          utterance.volume = 0.8;
+          
+          utterance.onstart = () => console.log(`Speaking: "${text}" in ${lang}`);
+          utterance.onerror = (e) => console.error('Speech error:', e);
+          
+          speechSynthesis.speak(utterance);
+        } catch (error) {
+          console.error('Speech synthesis error:', error);
+        }
+      }, 100);
     }
 
     function shuffle(array) {
@@ -156,9 +236,12 @@
       if (cards.length === 0) return;
       showingFront = true;
       const content = cards[current].front;
-      card.textContent = content;
-      card.appendChild(document.getElementById("inlineMessage"));
-      speak(content, "en-US");
+      document.getElementById('card').textContent = content;
+      document.getElementById('card').appendChild(document.getElementById("inlineMessage"));
+      
+      // 약간의 지연 후 음성 재생
+      setTimeout(() => speak(content, "en-US"), 200);
+      
       document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
@@ -167,9 +250,12 @@
     function flipCard() {
       if (cards.length === 0) return;
       const content = showingFront ? cards[current].back : cards[current].front;
-      card.textContent = content;
-      card.appendChild(document.getElementById("inlineMessage"));
-      speak(content, showingFront ? "ko-KR" : "en-US");
+      document.getElementById('card').textContent = content;
+      document.getElementById('card').appendChild(document.getElementById("inlineMessage"));
+      
+      // 약간의 지연 후 음성 재생
+      setTimeout(() => speak(content, showingFront ? "ko-KR" : "en-US"), 200);
+      
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
@@ -220,7 +306,7 @@
     }
 
     function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window)) {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         showInlineMessage('❗ 음성 인식 미지원 브라우저');
         useSpeech = false;
         return;
@@ -228,7 +314,9 @@
 
       useSpeech = true;
       document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
-      const recognition = new webkitSpeechRecognition();
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
       recognition.lang = 'ko-KR';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
@@ -247,6 +335,7 @@
       };
 
       recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
         showInlineMessage('❗ 음성 인식 오류: 다시 눌러주세요.');
         document.getElementById("voiceHint").textContent = "❗ 음성 인식 실패. 다시 눌러주세요.";
       };
@@ -257,9 +346,6 @@
 
       recognition.start();
     }
-
-    const card = document.getElementById("card");
-    loadCards();
   </script>
 </body>
 </html>
