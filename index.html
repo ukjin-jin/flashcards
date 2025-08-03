@@ -175,37 +175,44 @@
     }
 
     function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window) || recognizing) return;
-      const recog = new webkitSpeechRecognition();
-      recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
-      recog.interimResults = false;
-      recog.maxAlternatives = 1;
-      recognizing = true;
-      recog.onresult = function(event) {
-        const said = event.results[0][0].transcript.trim();
-        const answer = isEngFirst() ? cards[current].back.trim() : cards[current].front.trim();
-        if (said === answer) {
-          showInlineMessage(`✅ 정답! (${said})`);
-          recognizing = false;
-          setTimeout(() => nextCard(), 1000);
-        } else {
-          document.getElementById("wrongSound").play();
-          showInlineMessage(`❌ ${said} → 정답: ${answer}`);
-          recognizing = false;
-          setTimeout(() => markWrong(), 1000);
-        }
-      };
-      recog.onerror = function() {
-        showInlineMessage("❗ 음성 인식 실패");
-        document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
-        recognizing = false;
-      };
-      recog.onend = function() {
-        recognizing = false;
+       if (!('webkitSpeechRecognition' in window) || recognizing) return;
+  const recog = new webkitSpeechRecognition();
+  recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
+  recog.interimResults = false;
+  recog.maxAlternatives = 1;
+  recognizing = true;
+  recog.onresult = function(event) {
+    const said = event.results[0][0].transcript.trim().toLowerCase();
+    const answer = (isEngFirst() ? cards[current].back.trim() : cards[current].front.trim()).toLowerCase();
+    // 알파벳/한글 기준, 모든 공백 제거도 옵션 가능
+    if (said.replace(/\s/g, '') === answer.replace(/\s/g, '')) {
+      showInlineMessage(`✅ 정답! (${event.results[0][0].transcript})`);
+      recognizing = false;
+      setTimeout(() => {
+        nextCard();
         document.getElementById("voiceHint").textContent = "";
-      };
-      recog.start();
-      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
+      }, 800);
+    } else {
+      document.getElementById("wrongSound").play();
+      showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${answer}`);
+      recognizing = false;
+      setTimeout(() => {
+        markWrong();
+        document.getElementById("voiceHint").textContent = "";
+      }, 1000);
+    }
+  };
+  recog.onerror = function() {
+    showInlineMessage("❗ 음성 인식 실패");
+    document.getElementById("voiceHint").textContent = "❗ 다시 시도해주세요";
+    recognizing = false;
+  };
+  recog.onend = function() {
+    recognizing = false;
+    document.getElementById("voiceHint").textContent = "";
+  };
+  recog.start();
+  document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
     }
 
     if ('webkitSpeechRecognition' in window) {
