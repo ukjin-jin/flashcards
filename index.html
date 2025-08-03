@@ -94,25 +94,28 @@
       }, 150);
     }
 
-    function updateCard() {
-      if (cards.length === 0) return;
-      showingFront = true;
-      let content = isEngFirst() ? cards[current].front : cards[current].back;
-      const cardElem = document.getElementById("card");
-      cardElem.textContent = content;
-      const inlineMsg = document.getElementById("inlineMessage");
-      if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
+function updateCard() {
+  if (cards.length === 0) return;
+  showingFront = true;
+  let content = isEngFirst() ? cards[current].front : cards[current].back;
+  const cardElem = document.getElementById("card");
+  cardElem.textContent = content;
+  const inlineMsg = document.getElementById("inlineMessage");
+  if (inlineMsg && inlineMsg.parentNode !== cardElem) cardElem.appendChild(inlineMsg);
 
-      // 현재까지 맞은 개수는 현재까지 푼 카드 - 틀린 개수
-      const solved = current + 1;
-      const correctSoFar = solved - wrongCards.length;
-      document.getElementById("counter").innerHTML =
-        `문제 ${solved} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
+  // 정답 개수: 현재 current까지 맞춘 개수(틀린 개수 빼고)
+  // 첫 문제 current=0 이므로 맞춘 개수 0부터 시작
+  let correctSoFar = current - wrongCards.length;
+  if (correctSoFar < 0) correctSoFar = 0;
 
-      speak(content, isEngFirst() ? "en-US" : "ko-KR");
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = ""; // 항상 기본적으로 안 보이게
-    }
+  document.getElementById("counter").innerHTML =
+    `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
+
+  speak(content, isEngFirst() ? "en-US" : "ko-KR");
+  document.getElementById("selfCheckBtns").style.display = 'none';
+  document.getElementById("voiceHint").textContent = ""; // 항상 기본적으로 안 보이게
+}
+
 
     function flipCard() {
       if (cards.length === 0) return;
