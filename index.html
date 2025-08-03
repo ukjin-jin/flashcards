@@ -92,6 +92,7 @@
     <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
+    <button onclick="startSpeechRecognition()" id="speechBtn" style="display: none;">🎤 정답 말하기</button>
   </div>
   <div id="selfCheckBtns">
     <p>맞았나요?</p>
@@ -256,6 +257,9 @@
 
     if ('webkitSpeechRecognition' in window) {
       useSpeech = true;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "none";
+
       setInterval(() => {
         if (useSpeech && showingFront) {
           startSpeechRecognition();
@@ -263,6 +267,8 @@
       }, 1500);
     } else {
       useSpeech = false;
+      const speechBtn = document.getElementById("speechBtn");
+      if (speechBtn) speechBtn.style.display = "none";
     }
 
     const card = document.getElementById("card");
