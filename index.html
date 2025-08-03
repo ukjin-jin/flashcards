@@ -20,6 +20,10 @@
     <label>
       <input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제
     </label>
+    &nbsp;&nbsp;
+    <label>
+      <input type="checkbox" id="engFirstChk" checked> 영어 체크
+    </label>
   </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">Loading...
@@ -47,6 +51,11 @@
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0, showingFront = true;
 
+    // true면 영어->한글, false면 한글->영어
+    function isEngFirst() {
+      return document.getElementById("engFirstChk").checked;
+    }
+
     async function loadCards() {
       const response = await fetch(SHEET_URL);
       const text = await response.text();
@@ -60,7 +69,6 @@
 
     function resetToFullDeck() {
       cards = [...originalCards];
-      // ✅ 랜덤 체크박스에 따라 셔플 여부 결정
       if (document.getElementById("randomModeChk").checked) {
         shuffle(cards);
       }
@@ -88,23 +96,30 @@
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      const content = cards[current].front;
+      let content = isEngFirst() ? cards[current].front : cards[current].back;
       const cardElem = document.getElementById("card");
       cardElem.textContent = content;
       cardElem.appendChild(document.getElementById("inlineMessage"));
       document.getElementById("counter").textContent = `${current + 1} / ${cards.length}`;
-      speak(content, "en-US");
+      speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = useSpeech ? "🗣️ 말하세요..." : "";
     }
 
     function flipCard() {
       if (cards.length === 0) return;
+      let content = showingFront
+        ? (isEngFirst() ? cards[current].back : cards[current].front)
+        : (isEngFirst() ? cards[current].front : cards[current].back);
+
+      const lang = showingFront
+        ? (isEngFirst() ? "ko-KR" : "en-US")
+        : (isEngFirst() ? "en-US" : "ko-KR");
+
       const cardElem = document.getElementById("card");
-      const content = showingFront ? cards[current].back : cards[current].front;
       cardElem.textContent = content;
       cardElem.appendChild(document.getElementById("inlineMessage"));
-      speak(content, showingFront ? "ko-KR" : "en-US");
+      speak(content, lang);
       showingFront = !showingFront;
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
@@ -142,7 +157,6 @@
     function retryWrong() {
       if (wrongCards.length > 0) {
         cards = [...wrongCards];
-        // 틀린 것만 복습할 때도 무작위 모드 적용
         if (document.getElementById("randomModeChk").checked) {
           shuffle(cards);
         }
@@ -163,13 +177,13 @@
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window) || recognizing) return;
       const recog = new webkitSpeechRecognition();
-      recog.lang = 'ko-KR';
+      recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
       recog.interimResults = false;
       recog.maxAlternatives = 1;
       recognizing = true;
       recog.onresult = function(event) {
         const said = event.results[0][0].transcript.trim();
-        const answer = cards[current].back.trim();
+        const answer = isEngFirst() ? cards[current].back.trim() : cards[current].front.trim();
         if (said === answer) {
           showInlineMessage(`✅ 정답! (${said})`);
           recognizing = false;
@@ -204,9 +218,10 @@
       if (speechBtn) speechBtn.style.display = "none";
     }
 
-    // 무작위 체크박스 변경 시 현재 문제 셋 재시작
+    // 옵션 변경 시 즉시 반영
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
+      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
     });
 
     loadCards();
