@@ -15,8 +15,20 @@
     #resultBox { margin-top: 36px; font-size: 19px;}
     .randbox { margin-bottom: 10px; font-size: 16px;}
     input[type=checkbox]{width:18px;height:18px;vertical-align:-3px;}
+    .speak-btn {
+      border: none;
+      background: none;
+      cursor: pointer;
+      position: absolute;
+      right: 16px; top: 16px;
+      font-size: 28px;
+      color: #87a6d5;
+      transition: color .13s;
+    }
+    .speak-btn:hover { color: #284574; }
     @media (max-width:480px) {
       .card{width:95vw;font-size:20px;padding:32px 2vw;}
+      .speak-btn { font-size: 22px; right: 7px; top: 7px;}
     }
   </style>
 </head>
@@ -29,6 +41,9 @@
   </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">
+    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">
+      🔊
+    </button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
@@ -49,9 +64,10 @@
     let recognizing = false;
     let useSpeech = false;
     let alreadySpoken = false;
+    let showingFront = true; // 카드 앞면/뒷면 상태 저장
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
-    let current = 0, showingFront = true;
+    let current = 0;
 
     function isEngFirst() {
       return document.getElementById("engFirstChk").checked;
@@ -96,6 +112,19 @@
         if (callback) utter.onend = callback;
         window.speechSynthesis.speak(utter);
       }, 150);
+    }
+
+    // 스피커 버튼에서 호출
+    function speakCurrentCard() {
+      let text, lang;
+      if (showingFront) {
+        text = isEngFirst() ? cards[current].front : cards[current].back;
+        lang = isEngFirst() ? "en-US" : "ko-KR";
+      } else {
+        text = isEngFirst() ? cards[current].back : cards[current].front;
+        lang = isEngFirst() ? "ko-KR" : "en-US";
+      }
+      speak(text, lang);
     }
 
     function updateCard() {
@@ -192,6 +221,7 @@
       let answerText = isEngFirst() ? cards[current].back : cards[current].front;
       document.getElementById("cardText").textContent = answerText;
       speak(answerText, isEngFirst() ? "ko-KR" : "en-US");
+      showingFront = false;
       setTimeout(() => {
         nextCard();
       }, 1000);
