@@ -96,7 +96,7 @@
   </div>
   <div id="voiceHint"></div>
   <div class="buttons">
-    <button onclick="prevCard()">◀ 이전</button>
+    <button id="prevBtn" onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
@@ -174,22 +174,25 @@
       speak(text, lang);
     }
 
-    function updateCard() {
-      if (cards.length === 0) return;
-      showingFront = true;
-      let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-      document.getElementById("cardText").textContent = content;
-      let correctSoFar = current - wrongCards.length;
-      if (correctSoFar < 0) correctSoFar = 0;
-
-      document.getElementById("counter").innerHTML =
-        `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
-
-      speak(content, isEngFirst() ? "en-US" : "ko-KR");
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = "";
-      hideInlineMessage();
-    }
+  function updateCard() {
+    if (cards.length === 0) return;
+    showingFront = true;
+    let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    document.getElementById("cardText").textContent = content;
+    let correctSoFar = current - wrongCards.length;
+    if (correctSoFar < 0) correctSoFar = 0;
+  
+    document.getElementById("counter").innerHTML =
+      `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
+  
+    speak(content, isEngFirst() ? "en-US" : "ko-KR");
+    document.getElementById("selfCheckBtns").style.display = 'none';
+    document.getElementById("voiceHint").textContent = "";
+    hideInlineMessage();
+  
+    // 첫 문제에서는 이전 버튼 숨김
+    document.getElementById('prevBtn').style.visibility = current === 0 ? "hidden" : "visible";
+  }
 
     function flipCard() {
       if (cards.length === 0) return;
@@ -233,11 +236,22 @@
           <button onclick="resetToFullDeck()">전체 다시하기</button>`;
       }
     }
+  
+  function prevCard() {
+    // 현재가 0번이면 아무것도 하지 않음
+    if (current <= 0) return;
+  
+    // 이전 카드에 대해, 틀린 기록(wrongCards)이 있으면 지움
+    let prev = cards[current - 1];
+    // wrongCards에서 이전 카드를 모두 삭제
+    wrongCards = wrongCards.filter(card => !isSameCard(card, prev));
+    current--;
+    updateCard();
+  }
 
-    function prevCard() {
-      current = (current - 1 + cards.length) % cards.length;
-      updateCard();
-    }
+    function isSameCard(a, b) {
+  return a.front === b.front && a.back === b.back;
+}
 
     function retryWrong() {
       if (wrongCards.length > 0) {
