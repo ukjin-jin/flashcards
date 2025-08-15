@@ -138,21 +138,23 @@
       speak(text, lang);
     }
 
-    function setCardBackground(isCorrect) {
-      const card = document.getElementById("card");
-      if (isCorrect === true) {
-        card.style.backgroundImage = "url('correct.jpg')";
-      } else if (isCorrect === false) {
-        card.style.backgroundImage = "url('wrong.jpg')";
-      } else {
-        card.style.backgroundImage = "none";
-      }
+  function setPageBackground(isCorrect) {
+    if (isCorrect === true) {
+      document.body.style.backgroundImage = "url('correct.jpg')";
+    } else if (isCorrect === false) {
+      document.body.style.backgroundImage = "url('wrong.jpg')";
+    } else {
+      document.body.style.backgroundImage = "none"; // 기본 배경
     }
+    document.body.style.backgroundSize = "cover";
+    document.body.style.backgroundPosition = "center";
+    document.body.style.backgroundRepeat = "no-repeat";
+  }
 
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      setCardBackground(null);
+      setPageBackground(null);
       let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
 
@@ -191,13 +193,13 @@
 
     function markWrong() {
       answerStatus[current] = "wrong";
-      setCardBackground(false);
+      setPageBackground(false);
       showAnswerThenNextCard();
     }
 
     function markCorrectSelf() {
       answerStatus[current] = "correct";
-      setCardBackground(true);
+      setPageBackground(true);
       showAnswerThenNextCard();
     }
 
@@ -208,7 +210,7 @@
 
       if (answerStatus[current] === null) {
         answerStatus[current] = "correct";
-        setCardBackground(true);
+        setPageBackground(true);
       }
 
       if (current < cards.length - 1) {
