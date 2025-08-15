@@ -18,8 +18,8 @@
       font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,.12); display: none;
     }
     .buttons { max-width: 350px; margin: 8px auto 0; display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
-    .buttons button { flex:1 1 45%; min-width:145px; padding:12px 22px; font-size:17px; border-radius:6px; border:1px solid #bbb; background:#fff; cursor:pointer; }
-    .buttons button:hover{ background:#f2f2f2; }
+    .buttons button, .buttons a { flex:1 1 45%; min-width:145px; padding:12px 22px; font-size:17px; border-radius:6px; border:1px solid #bbb; background:#fff; cursor:pointer; text-decoration:none; color:#000; text-align:center; }
+    .buttons button:hover, .buttons a:hover{ background:#f2f2f2; }
     .counter { margin-top: 8px; font-size: 20px; color:#666; }
     #voiceHint { margin-top: 8px; font-size: 16px; color:#777; }
     #resultBox { margin-top: 28px; font-size: 19px; }
@@ -33,7 +33,7 @@
 
     /* 결과 이미지: 버튼 아래, 중앙 정렬, 버튼 폭에 맞추기 */
     #resultImageBox { margin-top: 15px; display:flex; justify-content:center; }
-    #resultImage { width:100%; max-width:350px; display:none; border-radius:8px; }
+    #resultImage { width:100%; max-width:300px; display:none; border-radius:8px; }
 
     @media (max-width:480px){
       .card{ width:95vw; font-size:20px; padding:32px 2vw; }
@@ -65,6 +65,8 @@
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
+    <!-- 📖 네이버 사전 링크 버튼 -->
+    <a id="dictBtn" href="#" target="_blank" rel="noopener">📖 네이버 사전</a>
   </div>
 
   <!-- 결과 이미지: 버튼 아래 -->
@@ -89,7 +91,7 @@
   let originalCards = [], cards = [];
   // 문제별 상태: null | "correct" | "wrong"
   let answerStatus = [];
-  // 틀린 것만 다시풀기용 목록(중복 방지 위해 인덱스로 관리)
+  // 틀린 것만 다시풀기용 목록(인덱스)
   let wrongIndexSet = new Set();
 
   function isForeignFirst(){ return document.getElementById("engFirstChk").checked; }
@@ -169,11 +171,31 @@
 
   function normalize(s){ return (s||"").toLowerCase().replace(/\s/g,""); }
 
+  // --- 현재 화면의 표시 텍스트(사전 링크용) ---
+  function getVisibleTerm(){
+    return showingFront
+      ? (isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back))
+      : (isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front);
+  }
+
+  // --- 네이버 사전 링크 갱신 ---
+  function updateDictLink(){
+    const term = getVisibleTerm();
+    // 사용자가 예로 준 포맷을 그대로 사용
+    const base = "https://dict.naver.com/dict.search";
+    const q = encodeURIComponent(term);
+    const url = `${base}?dicQuery=${q}&query=${q}&target=dic&ie=utf8&query_utf=&isOnlyViewEE=`;
+    const a = document.getElementById("dictBtn");
+    a.href = url;
+    a.title = `네이버 사전에서 "${term}" 검색`;
+  }
+
   // --- 카드 표시/전환 ---
   function speakCurrentCard(){
-    let text, lang;
-    if (showingFront) { text = isForeignFirst()?cards[current].front:getFirstAnswer(cards[current].back); lang = isForeignFirst()?"en-US":"ko-KR"; }
-    else { text = isForeignFirst()?getFirstAnswer(cards[current].back):cards[current].front; lang = isForeignFirst()?"ko-KR":"en-US"; }
+    const text = getVisibleTerm();
+    const lang = (showingFront
+      ? (isForeignFirst() ? "en-US" : "ko-KR")
+      : (isForeignFirst() ? "ko-KR" : "en-US"));
     speak(text, lang);
   }
 
@@ -192,6 +214,8 @@
     speak(content, isForeignFirst()?"en-US":"ko-KR");
     document.getElementById("selfCheckBtns").style.display = 'none';
     document.getElementById("prevBtn").style.display = current===0 ? "none" : "inline-block";
+
+    updateDictLink();
   }
 
   function flipCard(){
@@ -202,8 +226,8 @@
     speak(content, lang);
     showingFront = !showingFront;
 
-    // 음성인식 미사용 환경에서는 뒷면에서 자기채점 버튼 노출
     if (!useSpeech && !showingFront) document.getElementById("selfCheckBtns").style.display = 'block';
+    updateDictLink();
   }
 
   // --- 결과 이미지 ---
@@ -219,7 +243,6 @@
 
   // --- 채점 액션 ---
   function markWrong(){
-    // 이미 wrong가 아니면 wrong로 설정 + 집합에 인덱스 보관
     if (answerStatus[current] !== "wrong") {
       answerStatus[current] = "wrong";
       wrongIndexSet.add(current);
@@ -231,7 +254,6 @@
   function markCorrectSelf(){
     if (answerStatus[current] !== "correct") {
       answerStatus[current] = "correct";
-      // 이전에 틀렸던 문제면 틀린 목록에서 제거
       if (wrongIndexSet.has(current)) wrongIndexSet.delete(current);
     }
     showResultImage(true);
@@ -244,22 +266,20 @@
     document.getElementById("cardText").textContent = answerText;
     speak(answerText, isForeignFirst()? "ko-KR" : "en-US");
     showingFront = false;
+    updateDictLink(); // 정답을 보여줄 때도 링크 갱신
     setTimeout(()=>{ nextCard(); }, 1000);
   }
 
   function nextCard(){
-    // 다음으로 이동하면 (아직 채점 안 됐으면) 맞춘 것으로 처리
     if (answerStatus[current] === null) {
       answerStatus[current] = "correct";
     }
-    // 이 문제가 wrong 목록에 있었다면 제거
     if (wrongIndexSet.has(current)) wrongIndexSet.delete(current);
 
     if (current < cards.length-1) {
       current++;
       updateCard();
     } else {
-      // 완료 화면
       const correct = answerStatus.filter(s=>s==="correct").length;
       const wrong   = answerStatus.filter(s=>s==="wrong").length;
       document.getElementById("counter").innerHTML =
@@ -272,22 +292,15 @@
   }
 
   function prevCard(){
-    // 현재 문제의 채점 기록 롤백 (카운트 되돌림)
-    if (answerStatus[current] === "wrong" && wrongIndexSet.has(current)) {
-      // 롤백이니 틀린 기록 취소
-      wrongIndexSet.delete(current);
-    }
-    // 현재 문제 상태를 미해결로 되돌림
-    if (answerStatus[current] !== null) {
-      answerStatus[current] = null;
-    }
+    // 현재 문제 기록 롤백
+    if (answerStatus[current] === "wrong" && wrongIndexSet.has(current)) wrongIndexSet.delete(current);
+    if (answerStatus[current] !== null) answerStatus[current] = null;
 
     if (current > 0) current--;
     updateCard();
   }
 
   function retryWrong(){
-    // wrongIndexSet에 있는 인덱스들만 모아 새로운 덱 구성
     const wrongIdxs = [...wrongIndexSet];
     if (wrongIdxs.length === 0) return;
 
