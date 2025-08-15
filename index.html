@@ -126,6 +126,18 @@
       }, 150);
     }
 
+  function speakAndStartRecognition() {
+    if (!alreadySpoken) {
+      alreadySpoken = true;
+      let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+      let lang = isEngFirst() ? "en-US" : "ko-KR";
+      speak(content, lang, startSpeechRecognition);
+    } else {
+      startSpeechRecognition();
+    }
+  }
+
+
     function speakCurrentCard() {
       let text, lang;
       if (showingFront) {
