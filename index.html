@@ -19,8 +19,7 @@
       position: relative;
     }
     .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
-    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; cursor:pointer;}
-    .buttons button:hover {background:#f2f2f2;}
+    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; cursor:pointer; min-width:110px; min-height:50px;}
     .counter { margin-top: 8px; font-size: 20px; color:#666;}
     #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
     #resultBox { margin-top: 36px; font-size: 19px;}
@@ -36,10 +35,8 @@
       color: #87a6d5;
     }
     .speak-btn:hover { color: #284574; }
-    @media (max-width:480px) {
-      .card{width:95vw;font-size:20px;padding:32px 2vw;}
-      .speak-btn { font-size: 22px; right: 7px; top: 7px;}
-    }
+    #resultImageBox { margin-top:15px; }
+    #resultImage { max-width:200px; display:none; }
   </style>
 </head>
 <body>
@@ -50,27 +47,21 @@
     <label><input type="checkbox" id="engFirstChk" checked> 외국어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
-
   <div class="card" id="card" onclick="flipCard()">
     <button class="speak-btn" onclick="event.stopPropagation(); speakCurrentCard();">🔊</button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
-
   <div id="voiceHint"></div>
-
   <div class="buttons">
     <button id="prevBtn" onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
   </div>
-
-  <!-- 결과 이미지: 버튼 아래 -->
-  <div id="resultImageBox" style="margin-top:15px;">
-    <img id="resultImage" src="" alt="" style="max-width:360px; display:none;">
+  <div id="resultImageBox">
+    <img id="resultImage" src="" alt="">
   </div>
-
   <div id="selfCheckBtns" style="display: none;">
     <p>맞았나요?</p>
     <button onclick="markCorrectSelf()">⭕ 맞았음</button>
@@ -78,224 +69,219 @@
   </div>
   <div id="resultBox"></div>
 
-  <script>
-    let recognizing = false;
-    let useSpeech = false;
-    let alreadySpoken = false;
-    let showingFront = true;
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
-    let originalCards = [], cards = [], wrongCards = [];
-    let answerStatus = [];
-    let current = 0;
+<script>
+let recognizing = false, useSpeech = false, alreadySpoken = false, showingFront = true;
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
+let originalCards = [], cards = [], wrongCards = [], answerStatus = [];
+let current = 0;
 
-    function isForeignFirst() {
-      return document.getElementById("engFirstChk").checked;
-    }
+function isForeignFirst() { return document.getElementById("engFirstChk").checked; }
 
-    async function loadCards() {
-      const response = await fetch(SHEET_URL);
-      const text = await response.text();
-      const rows = text.trim().split("\n").slice(1);
-      originalCards = rows.map(row => {
-        const [front, back] = row.split(",");
-        return { front: front.trim(), back: back.trim() };
-      });
-      resetToFullDeck();
-    }
+async function loadCards() {
+  const response = await fetch(SHEET_URL);
+  const text = await response.text();
+  const rows = text.trim().split("\n").slice(1);
+  originalCards = rows.map(row => {
+    const [front, back] = row.split(",");
+    return { front: front.trim(), back: back.trim() };
+  });
+  resetToFullDeck();
+}
 
-    function resetToFullDeck() {
-      cards = [...originalCards];
-      if (document.getElementById("randomModeChk").checked) shuffle(cards);
-      wrongCards = [];
-      answerStatus = new Array(cards.length).fill(null);
-      current = 0;
-      updateCard();
-      document.getElementById("resultBox").innerHTML = "";
-      document.getElementById("resultImage").style.display = "none";
-    }
+function resetToFullDeck() {
+  cards = [...originalCards];
+  if (document.getElementById("randomModeChk").checked) shuffle(cards);
+  wrongCards = [];
+  answerStatus = new Array(cards.length).fill(null);
+  current = 0;
+  updateCard();
+  document.getElementById("resultBox").innerHTML = "";
+}
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
 
-    function speak(text, lang, callback) {
-      if (!window.speechSynthesis) { if (callback) callback(); return; }
-      window.speechSynthesis.cancel();
-      setTimeout(() => {
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = lang;
-        if (callback) utter.onend = callback;
-        window.speechSynthesis.speak(utter);
-      }, 150);
-    }
+function speak(text, lang, callback) {
+  if (!window.speechSynthesis) { if (callback) callback(); return; }
+  window.speechSynthesis.cancel();
+  setTimeout(() => {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    if (callback) utter.onend = callback;
+    window.speechSynthesis.speak(utter);
+  }, 150);
+}
 
-    function speakAndStartRecognition() {
-      if (!alreadySpoken) {
-        alreadySpoken = true;
-        let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        let lang = isForeignFirst() ? "en-US" : "ko-KR";
-        speak(content, lang, startSpeechRecognition);
-      } else {
-        startSpeechRecognition();
-      }
-    }
+function speakAndStartRecognition() {
+  if (!alreadySpoken) {
+    alreadySpoken = true;
+    let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    let lang = isForeignFirst() ? "en-US" : "ko-KR";
+    speak(content, lang, startSpeechRecognition);
+  } else {
+    startSpeechRecognition();
+  }
+}
 
-    function startSpeechRecognition() {
-      if (!useSpeech) return;
-      const recognition = new webkitSpeechRecognition();
-      recognition.lang = isForeignFirst() ? "ko-KR" : "en-US";
-      recognition.onresult = function(event) {
-        let said = event.results[0][0].transcript.trim();
-        let correctAnswer = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        if (said === correctAnswer) {
-          markCorrectSelf();
-        } else {
-          markWrong();
-        }
-      };
-      recognition.start();
-    }
-
-    function speakCurrentCard() {
-      let text, lang;
-      if (showingFront) {
-        text = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        lang = isForeignFirst() ? "en-US" : "ko-KR";
-      } else {
-        text = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        lang = isForeignFirst() ? "ko-KR" : "en-US";
-      }
-      speak(text, lang);
-    }
-
-    function showResultImage(isCorrect) {
-      const img = document.getElementById("resultImage");
-      if (isCorrect === true) {
-        img.src = "correct.jpg";
-        img.style.display = "inline-block";
-      } else if (isCorrect === false) {
-        img.src = "wrong.jpg";
-        img.style.display = "inline-block";
-      } else {
-        img.style.display = "none";
-      }
-    }
-
-    function updateCard() {
-      if (cards.length === 0) return;
-      showingFront = true;
-      showResultImage(null);
-      let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-      document.getElementById("cardText").textContent = content;
-
-      const correctSoFar = answerStatus.filter(s => s === "correct").length;
-      const wrongSoFar = answerStatus.filter(s => s === "wrong").length;
-
-      document.getElementById("counter").innerHTML =
-        `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongSoFar}`;
-
-      speak(content, isForeignFirst() ? "en-US" : "ko-KR");
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = "";
-      document.getElementById("prevBtn").style.display = current === 0 ? "none" : "inline-block";
-    }
-
-    function flipCard() {
-      if (cards.length === 0) return;
-      let content, lang;
-      if (showingFront) {
-        content = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        lang = isForeignFirst() ? "ko-KR" : "en-US";
-      } else {
-        content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        lang = isForeignFirst() ? "en-US" : "ko-KR";
-      }
-      document.getElementById("cardText").textContent = content;
-      speak(content, lang);
-      showingFront = !showingFront;
-      if (!useSpeech && !showingFront) {
-        document.getElementById("selfCheckBtns").style.display = 'block';
-      }
-    }
-
-    function markWrong() {
-      answerStatus[current] = "wrong";
-      showResultImage(false);
-      showAnswerThenNextCard();
-    }
-
-    function markCorrectSelf() {
-      answerStatus[current] = "correct";
-      showResultImage(true);
-      showAnswerThenNextCard();
-    }
-
-    function nextCard() {
-      if (answerStatus[current] === "wrong") {
-        wrongCards = wrongCards.filter(card => card !== cards[current]);
-      }
-      answerStatus[current] = "correct";
-      showResultImage(true);
-      if (current < cards.length - 1) {
-        current++;
-        updateCard();
-      } else {
-        const correct = answerStatus.filter(s => s === "correct").length;
-        const wrong = answerStatus.filter(s => s === "wrong").length;
-        document.getElementById("counter").innerHTML =
-          `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrong}`;
-        document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
-          <button onclick="retryWrong()">틀린 것만 다시하기</button>
-          <button onclick="resetToFullDeck()">전체 다시하기</button>`;
-      }
-    }
-
-    function prevCard() {
-      current = (current - 1 + cards.length) % cards.length;
-      updateCard();
-    }
-
-    function retryWrong() {
-      if (wrongCards.length > 0) {
-        cards = [...wrongCards];
-        if (document.getElementById("randomModeChk").checked) shuffle(cards);
-        wrongCards = [];
-        answerStatus = new Array(cards.length).fill(null);
-        current = 0;
-        updateCard();
-        document.getElementById("resultBox").innerHTML = "";
-      }
-    }
-
-    function showAnswerThenNextCard() {
-      let answerText = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-      document.getElementById("cardText").textContent = answerText;
-      speak(answerText, isForeignFirst() ? "ko-KR" : "en-US");
-      showingFront = false;
-      setTimeout(() => { nextCard(); }, 1000);
-    }
-
-    function getFirstAnswer(ansStr) {
-      return ansStr.split(/,|，/)[0].trim();
-    }
-
-    if ('webkitSpeechRecognition' in window) {
-      useSpeech = true;
-      document.getElementById("speechBtn").style.display = "inline-block";
+function startSpeechRecognition() {
+  if (!('webkitSpeechRecognition' in window)) return;
+  const recognition = new webkitSpeechRecognition();
+  recognition.lang = isForeignFirst() ? "ko-KR" : "en-US";
+  recognition.start();
+  recognizing = true;
+  recognition.onresult = function(event) {
+    let said = event.results[0][0].transcript.trim();
+    let answer = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+    if (said === answer) {
+      markCorrectSelf();
+      showInlineMessage("정답!");
     } else {
-      useSpeech = false;
-      document.getElementById("speechBtn").style.display = "none";
+      markWrong();
+      showInlineMessage("오답!");
     }
+  };
+  recognition.onend = () => recognizing = false;
+}
 
-    document.addEventListener('DOMContentLoaded', function () {
-      document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
-      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
-    });
+function speakCurrentCard() {
+  let text, lang;
+  if (showingFront) {
+    text = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    lang = isForeignFirst() ? "en-US" : "ko-KR";
+  } else {
+    text = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+    lang = isForeignFirst() ? "ko-KR" : "en-US";
+  }
+  speak(text, lang);
+}
 
-    loadCards();
-  </script>
+function showResultImage(isCorrect) {
+  const img = document.getElementById("resultImage");
+  if (isCorrect === true) img.src = "correct.jpg";
+  else if (isCorrect === false) img.src = "wrong.jpg";
+  else { img.style.display = "none"; return; }
+  img.style.display = "block";
+}
+
+function updateCard() {
+  showingFront = true;
+  showResultImage(null);
+  let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+  document.getElementById("cardText").textContent = content;
+  const correctSoFar = answerStatus.filter(s => s === "correct").length;
+  const wrongSoFar = answerStatus.filter(s => s === "wrong").length;
+  document.getElementById("counter").innerHTML =
+    `문제 ${current + 1} / ${cards.length} | 맞춘 개수: ${correctSoFar} | 틀린 개수: ${wrongSoFar}`;
+  speak(content, isForeignFirst() ? "en-US" : "ko-KR");
+  document.getElementById("selfCheckBtns").style.display = 'none';
+  document.getElementById("prevBtn").style.display = current === 0 ? "none" : "inline-block";
+}
+
+function flipCard() {
+  let content, lang;
+  if (showingFront) {
+    content = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+    lang = isForeignFirst() ? "ko-KR" : "en-US";
+  } else {
+    content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    lang = isForeignFirst() ? "en-US" : "ko-KR";
+  }
+  document.getElementById("cardText").textContent = content;
+  speak(content, lang);
+  showingFront = !showingFront;
+  if (!useSpeech && !showingFront) document.getElementById("selfCheckBtns").style.display = 'block';
+}
+
+function markWrong() {
+  if (answerStatus[current] !== "wrong") {
+    answerStatus[current] = "wrong";
+  }
+  wrongCards.push(cards[current]);
+  showResultImage(false);
+  showAnswerThenNextCard();
+}
+
+function markCorrectSelf() {
+  answerStatus[current] = "correct";
+  showResultImage(true);
+  showAnswerThenNextCard();
+}
+
+function nextCard() {
+  if (answerStatus[current] !== "correct") {
+    answerStatus[current] = "correct";
+  }
+  current++;
+  if (current < cards.length) {
+    updateCard();
+  } else {
+    const correct = answerStatus.filter(s => s === "correct").length;
+    const wrong = answerStatus.filter(s => s === "wrong").length;
+    document.getElementById("resultBox").innerHTML =
+      `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
+       <button onclick="retryWrong()">틀린 것만 다시하기</button>
+       <button onclick="resetToFullDeck()">전체 다시하기</button>`;
+  }
+}
+
+function prevCard() {
+  // 이전 문제로 돌아가면 기록 취소
+  if (answerStatus[current] === "correct" || answerStatus[current] === "wrong") {
+    answerStatus[current] = null;
+  }
+  current = Math.max(0, current - 1);
+  updateCard();
+}
+
+function retryWrong() {
+  if (wrongCards.length > 0) {
+    cards = [...wrongCards];
+    wrongCards = [];
+    answerStatus = new Array(cards.length).fill(null);
+    current = 0;
+    updateCard();
+    document.getElementById("resultBox").innerHTML = "";
+  }
+}
+
+function showInlineMessage(msg) {
+  const box = document.getElementById("inlineMessage");
+  box.textContent = msg;
+  box.style.display = 'block';
+  if (box.timer) clearTimeout(box.timer);
+  box.timer = setTimeout(() => box.style.display = 'none', 1500);
+}
+
+function showAnswerThenNextCard() {
+  let answerText = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+  document.getElementById("cardText").textContent = answerText;
+  speak(answerText, isForeignFirst() ? "ko-KR" : "en-US");
+  showingFront = false;
+  setTimeout(nextCard, 1000);
+}
+
+function getFirstAnswer(ansStr) {
+  return ansStr.split(/,|，/)[0].trim();
+}
+
+if ('webkitSpeechRecognition' in window) {
+  useSpeech = true;
+  document.getElementById("speechBtn").style.display = "inline-block";
+} else {
+  useSpeech = false;
+  document.getElementById("speechBtn").style.display = "none";
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
+  document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
+});
+
+loadCards();
+</script>
 </body>
 </html>
