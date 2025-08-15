@@ -159,10 +159,11 @@
     document.body.style.backgroundImage = "none"; // 기본 배경
   }
 
-  document.body.style.backgroundSize = "cover";       // 화면 꽉 채움
-  document.body.style.backgroundPosition = "center";  // 가운데 정렬
-  document.body.style.backgroundRepeat = "no-repeat"; // 반복 안 함
-  document.body.style.backgroundAttachment = "fixed"; // 스크롤해도 고정
+  document.body.style.backgroundSize = "100% 100%"; // 가로/세로 화면 크기에 맞춰 강제 늘림
+  document.body.style.backgroundPosition = "center";
+  document.body.style.backgroundRepeat = "no-repeat";
+  document.body.style.backgroundAttachment = "fixed";
+
 }
 
 
