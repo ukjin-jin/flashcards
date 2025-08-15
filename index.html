@@ -230,7 +230,8 @@
   
     // 무조건 맞춘 걸로 처리 (덮어쓰기)
     answerStatus[current] = "correct";
-  
+    setPageBackground(true);
+    
     if (current < cards.length - 1) {
       current++;
       updateCard();
