@@ -5,19 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flashcards</title>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px; margin:0;}
+    body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
     h2 { margin-bottom: 6px; }
-    .card {
-      background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10);
-      padding: 50px 20px; margin: 25px auto 10px; width: 350px; font-size: 28px;
-      cursor: pointer; position: relative;
-      display: flex; justify-content: center; align-items: center; text-align: center;
+    .card { 
+      background: white center/cover no-repeat;
+      border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      padding: 50px 20px;
+      margin: 25px auto 10px;
+      width: 350px;
+      font-size: 28px;
+      cursor: pointer;
+      position: relative;
+      transition: background-image 0.3s ease;
     }
-    .message-overlay {
-      position: absolute; top: -36px; left: 0; right: 0; margin: auto;
-      background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px;
-      font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;
-    }
+    .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
     .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition: .1s; cursor:pointer;}
     .buttons button:hover {background:#f2f2f2;}
     .counter { margin-top: 8px; font-size: 20px; color:#666;}
@@ -25,18 +27,20 @@
     #resultBox { margin-top: 36px; font-size: 19px;}
     .randbox { margin-bottom: 10px; font-size: 16px;}
     input[type=checkbox]{width:18px;height:18px;vertical-align:-3px;}
-    .speak-btn, .dict-btn {
-      border: none; background: none; cursor: pointer; position: absolute;
-      font-size: 28px; transition: color .13s;
+    .speak-btn {
+      border: none;
+      background: none;
+      cursor: pointer;
+      position: absolute;
+      right: 16px; top: 16px;
+      font-size: 28px;
+      color: #87a6d5;
+      transition: color .13s;
     }
-    .speak-btn { right: 16px; top: 16px; color: #87a6d5;}
     .speak-btn:hover { color: #284574; }
-    .dict-btn { right: 56px; top: 16px; color: #4caf50;}
-    .dict-btn:hover { color: #2e7d32; }
     @media (max-width:480px) {
-      .card{width:100%;min-height:40vh;max-height:55vh;font-size:6vw;padding:24px 4vw;box-sizing:border-box;}
+      .card{width:95vw;font-size:20px;padding:32px 2vw;}
       .speak-btn { font-size: 22px; right: 7px; top: 7px;}
-      .dict-btn { font-size: 20px; right: 38px; top: 7px;}
     }
   </style>
 </head>
@@ -45,12 +49,13 @@
   <div class="randbox">
     <label><input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제</label>
     &nbsp;&nbsp;
-    <label><input type="checkbox" id="foreignFirstChk" checked> 외국어 체크</label>
+    <label><input type="checkbox" id="engFirstChk" checked> 외국어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">
-    <button class="dict-btn" id="dictBtn" onclick="event.stopPropagation(); openDictionary();">📖</button>
-    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">🔊</button>
+    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">
+      🔊
+    </button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
@@ -74,12 +79,12 @@
     let alreadySpoken = false;
     let showingFront = true;
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
-    let originalCards = [], cards = [];
+    let originalCards = [], cards = [], wrongCards = [];
+    let answerStatus = [];
     let current = 0;
-    let answerStatus = []; // correct / wrong / null
 
     function isForeignFirst() {
-      return document.getElementById("foreignFirstChk").checked;
+      return document.getElementById("engFirstChk").checked;
     }
 
     async function loadCards() {
@@ -96,6 +101,7 @@
     function resetToFullDeck() {
       cards = [...originalCards];
       if (document.getElementById("randomModeChk").checked) shuffle(cards);
+      wrongCards = [];
       answerStatus = new Array(cards.length).fill(null);
       current = 0;
       updateCard();
@@ -110,10 +116,7 @@
     }
 
     function speak(text, lang, callback) {
-      if (!window.speechSynthesis) {
-        if (callback) callback();
-        return;
-      }
+      if (!window.speechSynthesis) { if (callback) callback(); return; }
       window.speechSynthesis.cancel();
       setTimeout(() => {
         const utter = new SpeechSynthesisUtterance(text);
@@ -135,26 +138,21 @@
       speak(text, lang);
     }
 
-    function openDictionary() {
-      let text;
-      if (showingFront) {
-        text = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    function setCardBackground(isCorrect) {
+      const card = document.getElementById("card");
+      if (isCorrect === true) {
+        card.style.backgroundImage = "url('correct.jpg')";
+      } else if (isCorrect === false) {
+        card.style.backgroundImage = "url('wrong.jpg')";
       } else {
-        text = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        card.style.backgroundImage = "none";
       }
-      text = (text || "").trim();
-      if (!text) {
-        showInlineMessage("❗ 검색할 단어가 없습니다");
-        return;
-      }
-      const q = encodeURIComponent(text);
-      const url = `https://dict.naver.com/dict.search?dicQuery=${q}&query=${q}&target=dic&ie=utf8&query_utf&isOnlyViewEE`;
-      window.open(url, '_blank');
     }
 
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
+      setCardBackground(null);
       let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
 
@@ -168,6 +166,7 @@
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
       hideInlineMessage();
+
       document.getElementById("prevBtn").style.display = current === 0 ? "none" : "inline-block";
     }
 
@@ -192,36 +191,39 @@
 
     function markWrong() {
       answerStatus[current] = "wrong";
+      setCardBackground(false);
       showAnswerThenNextCard();
     }
 
     function markCorrectSelf() {
       answerStatus[current] = "correct";
+      setCardBackground(true);
       showAnswerThenNextCard();
     }
 
-  function nextCard() {
-    document.getElementById("selfCheckBtns").style.display = 'none';
-    document.getElementById("voiceHint").textContent = "";
-    hideInlineMessage();
-  
-    // 다음으로 이동 시 현재 문제를 맞춘 것으로 처리
-    answerStatus[current] = "correct";
-  
-    if (current < cards.length - 1) {
-      current++;
-      updateCard();
-    } else {
-      const correct = answerStatus.filter(s => s === "correct").length;
-      const wrong = answerStatus.filter(s => s === "wrong").length;
-      document.getElementById("counter").innerHTML =
-        `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrong}`;
-      document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
-        <button onclick="retryWrong()">틀린 것만 다시하기</button>
-        <button onclick="resetToFullDeck()">전체 다시하기</button>`;
-    }
-  }
+    function nextCard() {
+      document.getElementById("selfCheckBtns").style.display = 'none';
+      document.getElementById("voiceHint").textContent = "";
+      hideInlineMessage();
 
+      if (answerStatus[current] === null) {
+        answerStatus[current] = "correct";
+        setCardBackground(true);
+      }
+
+      if (current < cards.length - 1) {
+        current++;
+        updateCard();
+      } else {
+        const correct = answerStatus.filter(s => s === "correct").length;
+        const wrong = answerStatus.filter(s => s === "wrong").length;
+        document.getElementById("counter").innerHTML =
+          `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrong}`;
+        document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
+          <button onclick="retryWrong()">틀린 것만 다시하기</button>
+          <button onclick="resetToFullDeck()">전체 다시하기</button>`;
+      }
+    }
 
     function prevCard() {
       current = (current - 1 + cards.length) % cards.length;
@@ -229,13 +231,11 @@
     }
 
     function retryWrong() {
-      const wrongIndexes = answerStatus
-        .map((s, idx) => (s === "wrong" ? idx : null))
-        .filter(v => v !== null);
-      if (wrongIndexes.length > 0) {
-        cards = wrongIndexes.map(i => originalCards[i]);
-        answerStatus = new Array(cards.length).fill(null);
+      if (wrongCards.length > 0) {
+        cards = [...wrongCards];
         if (document.getElementById("randomModeChk").checked) shuffle(cards);
+        wrongCards = [];
+        answerStatus = new Array(cards.length).fill(null);
         current = 0;
         updateCard();
         document.getElementById("resultBox").innerHTML = "";
@@ -260,104 +260,13 @@
       document.getElementById("cardText").textContent = answerText;
       speak(answerText, isForeignFirst() ? "ko-KR" : "en-US");
       showingFront = false;
-      setTimeout(() => { nextCard(); }, 1000);
+      setTimeout(() => {
+        nextCard();
+      }, 1000);
     }
 
     function getFirstAnswer(ansStr) {
       return ansStr.split(/,|，/)[0].trim();
-    }
-
-    function getEditDistance(a, b) {
-      a = a.toLowerCase();
-      b = b.toLowerCase();
-      let costs = [];
-      for (let i = 0; i <= a.length; i++) {
-        let lastValue = i;
-        for (let j = 0; j <= b.length; j++) {
-          if (i === 0)
-            costs[j] = j;
-          else {
-            if (j > 0) {
-              let newValue = costs[j - 1];
-              if (a.charAt(i - 1) !== b.charAt(j - 1))
-                newValue = Math.min(Math.min(newValue, lastValue),
-                  costs[j]) + 1;
-              costs[j - 1] = lastValue;
-              lastValue = newValue;
-            }
-          }
-        }
-        if (i > 0)
-          costs[b.length] = lastValue;
-      }
-      return costs[b.length];
-    }
-
-    function isAnswerCorrect(said, answer) {
-      const answerList = answer.split(/,|，/).map(v => v.trim().toLowerCase());
-      for (let candidate of answerList) {
-        if (said === candidate) return true;
-        let compactSaid = said.replace(/\s/g, '');
-        let compactCand = candidate.replace(/\s/g, '');
-        const pattern = new RegExp(`^(${compactCand})+$`);
-        if (pattern.test(compactSaid)) return true;
-        if (getEditDistance(said, candidate) <= 1) return true;
-      }
-      return false;
-    }
-
-    function speakAndStartRecognition() {
-      if (!alreadySpoken) {
-        alreadySpoken = true;
-        let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        let lang = isForeignFirst() ? "en-US" : "ko-KR";
-        speak(content, lang, startSpeechRecognition);
-      } else {
-        startSpeechRecognition();
-      }
-    }
-
-    function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window) || recognizing) return;
-      recognizing = true;
-      const recog = new webkitSpeechRecognition();
-      recog.lang = isForeignFirst() ? 'ko-KR' : 'en-US';
-      recog.interimResults = false;
-      recog.maxAlternatives = 1;
-      document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
-      recog.onresult = function(event) {
-        const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
-        const answer = (isForeignFirst() ? cards[current].back : cards[current].front).trim().toLowerCase();
-        if (isAnswerCorrect(said, answer)) {
-          answerStatus[current] = "correct";
-          showInlineMessage(`✅ 정답!`);
-          recognizing = false;
-          setTimeout(() => {
-            hideInlineMessage();
-            showAnswerThenNextCard();
-            document.getElementById("voiceHint").textContent = "";
-          }, 800);
-        } else {
-          answerStatus[current] = "wrong";
-          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
-          recognizing = false;
-          setTimeout(() => {
-            hideInlineMessage();
-            showAnswerThenNextCard();
-            document.getElementById("voiceHint").textContent = "";
-          }, 1100);
-        }
-      };
-      recog.onerror = function(e) {
-        showInlineMessage(`❗ 음성 인식 실패: ${e.error}`);
-        document.getElementById("voiceHint").textContent = "";
-        recognizing = false;
-      };
-      recog.onend = function() {
-        recognizing = false;
-        document.getElementById("voiceHint").textContent = "";
-      };
-      recog.start();
     }
 
     if ('webkitSpeechRecognition' in window) {
@@ -372,7 +281,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
-      document.getElementById('foreignFirstChk').addEventListener('change', resetToFullDeck);
+      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
     });
 
     loadCards();
