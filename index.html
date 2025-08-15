@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flashcards</title>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px; margin: 0;}
+    body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px; margin:0;}
     h2 { margin-bottom: 6px; }
     .card {
       background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10);
@@ -45,20 +45,18 @@
   <div class="randbox">
     <label><input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제</label>
     &nbsp;&nbsp;
-    <label><input type="checkbox" id="engFirstChk" checked> 외국어 체크</label>
+    <label><input type="checkbox" id="foreignFirstChk" checked> 외국어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
   <div class="card" id="card" onclick="flipCard()">
-    <!-- 📖 사전 버튼 -->
     <button class="dict-btn" id="dictBtn" onclick="event.stopPropagation(); openDictionary();">📖</button>
-    <!-- 🔊 발음 버튼 -->
     <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">🔊</button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
   <div id="voiceHint"></div>
   <div class="buttons">
-    <button onclick="prevCard()">◀ 이전</button>
+    <button id="prevBtn" onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
@@ -79,8 +77,8 @@
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0;
 
-    function isEngFirst() {
-      return document.getElementById("engFirstChk").checked;
+    function isForeignFirst() {
+      return document.getElementById("foreignFirstChk").checked;
     }
 
     async function loadCards() {
@@ -127,62 +125,59 @@
     function speakCurrentCard() {
       let text, lang;
       if (showingFront) {
-        text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        lang = isEngFirst() ? "en-US" : "ko-KR";
+        text = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        lang = isForeignFirst() ? "en-US" : "ko-KR";
       } else {
-        text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        lang = isEngFirst() ? "ko-KR" : "en-US";
+        text = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        lang = isForeignFirst() ? "ko-KR" : "en-US";
       }
       speak(text, lang);
     }
 
-    // 📖 사전 열기
-  function openDictionary() {
-    let text;
-    if (showingFront) {
-      text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-    } else {
-      text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+    function openDictionary() {
+      let text;
+      if (showingFront) {
+        text = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+      } else {
+        text = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+      }
+      text = (text || "").trim();
+      if (!text) {
+        showInlineMessage("❗ 검색할 단어가 없습니다");
+        return;
+      }
+      const q = encodeURIComponent(text);
+      const url = `https://dict.naver.com/dict.search?dicQuery=${q}&query=${q}&target=dic&ie=utf8&query_utf&isOnlyViewEE`;
+      window.open(url, '_blank');
     }
-    text = (text || "").trim();
-  
-    if (!text) {
-      showInlineMessage("❗ 검색할 단어가 없습니다");
-      return;
-    }
-  
-    const base = "https://dict.naver.com/dict.search";
-    const query = encodeURIComponent(text);
-    const url = `${base}?dicQuery=${query}&query=${query}&target=dic&ie=utf8&query_utf&isOnlyViewEE`;
-    window.open(url, '_blank');
-  }
-
-
 
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+      let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
       document.getElementById("counter").innerHTML =
         `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
-      speak(content, isEngFirst() ? "en-US" : "ko-KR");
+      speak(content, isForeignFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
       hideInlineMessage();
+
+      // 첫 문제면 이전 버튼 숨기기
+      document.getElementById("prevBtn").style.display = current === 0 ? "none" : "inline-block";
     }
 
     function flipCard() {
       if (cards.length === 0) return;
       let content, lang;
       if (showingFront) {
-        content = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        lang = isEngFirst() ? "ko-KR" : "en-US";
+        content = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        lang = isForeignFirst() ? "ko-KR" : "en-US";
       } else {
-        content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        lang = isEngFirst() ? "en-US" : "ko-KR";
+        content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        lang = isForeignFirst() ? "en-US" : "ko-KR";
       }
       document.getElementById("cardText").textContent = content;
       speak(content, lang);
@@ -243,9 +238,9 @@
     }
 
     function showAnswerThenNextCard() {
-      let answerText = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+      let answerText = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
       document.getElementById("cardText").textContent = answerText;
-      speak(answerText, isEngFirst() ? "ko-KR" : "en-US");
+      speak(answerText, isForeignFirst() ? "ko-KR" : "en-US");
       showingFront = false;
       setTimeout(() => { nextCard(); }, 1000);
     }
@@ -296,8 +291,8 @@
     function speakAndStartRecognition() {
       if (!alreadySpoken) {
         alreadySpoken = true;
-        let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        let lang = isEngFirst() ? "en-US" : "ko-KR";
+        let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        let lang = isForeignFirst() ? "en-US" : "ko-KR";
         speak(content, lang, startSpeechRecognition);
       } else {
         startSpeechRecognition();
@@ -307,13 +302,13 @@
       if (!('webkitSpeechRecognition' in window) || recognizing) return;
       recognizing = true;
       const recog = new webkitSpeechRecognition();
-      recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
+      recog.lang = isForeignFirst() ? 'ko-KR' : 'en-US';
       recog.interimResults = false;
       recog.maxAlternatives = 1;
       document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
       recog.onresult = function(event) {
         const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
-        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase();
+        const answer = (isForeignFirst() ? cards[current].back : cards[current].front).trim().toLowerCase();
         if (isAnswerCorrect(said, answer)) {
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
@@ -323,7 +318,7 @@
             document.getElementById("voiceHint").textContent = "";
           }, 800);
         } else {
-          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
+          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
           recognizing = false;
           setTimeout(() => {
             hideInlineMessage();
@@ -354,7 +349,7 @@
     }
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
-      document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
+      document.getElementById('foreignFirstChk').addEventListener('change', resetToFullDeck);
     });
     loadCards();
   </script>
