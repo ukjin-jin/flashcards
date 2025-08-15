@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Flashcards</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
@@ -47,6 +47,7 @@
     }
     .speak-btn:hover { color: #284574; }
 
+    /* 모바일 확대 */
     @media (max-width:600px) {
       .card{ width:97vw; font-size:30px; padding:38px 1vw; min-height:84px; }
       .counter, #voiceHint, #resultBox { font-size: 22px;}
@@ -93,9 +94,11 @@
   <div id="resultBox"></div>
 
   <script>
-    /* ====== 시트 주소 ====== */
-    // A열=영어(front), B열=한글/동의어 쉼표구분(back). 따옴표 없이 입력.
+    /* ====== 설정 ====== */
+    // 구글 스프레드시트 CSV 공개 링크 (A:영어, B:한글/동의어 쉼표구분)
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
+    // 당신이 띄운 Google TTS 프록시 서버 주소로 변경!
+    const TTS_SERVER_URL = "http://localhost:5000/tts";
 
     /* ====== 상태 ====== */
     let recognizing = false;
@@ -104,51 +107,12 @@
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0;
 
-    /* ====== voices 로드 보장 ====== */
-    // Chrome의 getVoices 지연 로드를 대응하기 위한 helper
-    let voicesReadyResolve;
-    const voicesReady = new Promise(res => { voicesReadyResolve = res; });
-
-    function preloadVoices() {
-      const v = speechSynthesis.getVoices();
-      if (v && v.length) voicesReadyResolve();
-    }
-    window.speechSynthesis.onvoiceschanged = preloadVoices;
-    preloadVoices();
-
-    /* ====== 브라우저 TTS ====== */
-    function speak(text, lang = "en-US") {
-      // 자동재생 이슈 방지: 사용자 액션 후 호출 권장(버튼 클릭 등)
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = lang;
-      utter.rate = 0.95;
-      utter.pitch = 1.0;
-      utter.volume = 1.0;
-
-      return voicesReady.then(() => {
-        const voices = window.speechSynthesis.getVoices() || [];
-        // 우선 Google 계열 목소리 선호, 없으면 같은 언어 중 첫 번째
-        const preferred = voices.find(v => v.lang === lang && /Google|WaveNet|Microsoft/i.test(v.name))
-                         || voices.find(v => v.lang === lang);
-        if (preferred) utter.voice = preferred;
-
-        // 이전 발성이 진행 중이면 취소
-        if (speechSynthesis.speaking) {
-          speechSynthesis.cancel();
-        }
-        return new Promise(resolve => {
-          utter.onend = resolve;
-          setTimeout(() => speechSynthesis.speak(utter), 50);
-        });
-      });
-    }
-
     /* ====== 유틸 ====== */
     function isEngFirst() {
       return document.getElementById("engFirstChk").checked;
     }
     function getFirstAnswer(ansStr) {
-      return String(ansStr || "").split(/,|，/)[0].trim();
+      return ansStr.split(/,|，/)[0].trim();
     }
     function isSameCard(a, b) {
       return a.front === b.front && a.back === b.back;
@@ -159,11 +123,32 @@
       box.textContent = msg;
       box.style.display = 'block';
       if (box.timer) clearTimeout(box.timer);
-      box.timer = setTimeout(() => { box.style.display = 'none'; }, 1800);
+      box.timer = setTimeout(() => { box.style.display = 'none'; }, 2000);
     }
     function hideInlineMessage() {
       const box = document.getElementById("inlineMessage");
       if (box) box.style.display = 'none';
+    }
+
+    /* ====== Google TTS 호출 ====== */
+    async function playTTS_GCloud(text, lang, afterPlay) {
+      try {
+        const response = await fetch(TTS_SERVER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, lang })
+        });
+        if (!response.ok) throw new Error('TTS 서버 오류');
+        const blob = await response.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        if (afterPlay) audio.onended = afterPlay;
+        audio.play();
+        return audio;
+      } catch (e) {
+        console.error(e);
+        // 발음 실패해도 학습 흐름은 끊기지 않게
+        if (afterPlay) afterPlay();
+      }
     }
 
     /* ====== 데이터 로드/섞기 ====== */
@@ -200,6 +185,7 @@
       const content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
 
+      // 진행/정오 현황
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
       document.getElementById("counter").innerHTML =
@@ -286,30 +272,30 @@
     }
 
     /* ====== 스피커 / 정답말하기 ====== */
-    // 스피커(현재 보이는 텍스트 읽기). 사용자 클릭 기반이라 대부분 브라우저에서 재생 허용.
+    // 스피커(현재 보이는 텍스트를 읽어줌) - TTS 서버 사용
     function speakCurrentCard() {
       if (showingFront) {
         const text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
         const lang = isEngFirst() ? "en-US" : "ko-KR";
-        speak(text, lang);
+        playTTS_GCloud(text, lang);
       } else {
         const text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
         const lang = isEngFirst() ? "ko-KR" : "en-US";
-        speak(text, lang);
+        playTTS_GCloud(text, lang);
       }
     }
 
-    // 정답 말하기: (버튼 클릭) 앞면 텍스트를 읽어주고 -> 끝나면 음성 인식 시작
+    // 정답 말하기: 발음 재생 -> 끝나면 음성인식 시작
     function speakAndStartRecognition() {
       const text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       const lang = isEngFirst() ? "en-US" : "ko-KR";
-      speak(text, lang).then(startSpeechRecognition);
+      playTTS_GCloud(text, lang, startSpeechRecognition);
     }
 
     /* ====== 음성 인식 ====== */
     function startSpeechRecognition() {
       if (!('webkitSpeechRecognition' in window) || recognizing) {
-        // 미지원이면 셀프체크 UI 제공
+        // 미지원이면 셀프체크로
         document.getElementById("selfCheckBtns").style.display = 'block';
         return;
       }
