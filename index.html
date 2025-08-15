@@ -200,23 +200,28 @@
       showAnswerThenNextCard();
     }
 
-    function nextCard() {
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = "";
-      hideInlineMessage();
-      if (current < cards.length - 1) {
-        current++;
-        updateCard();
-      } else {
-        const correct = answerStatus.filter(s => s === "correct").length;
-        const wrong = answerStatus.filter(s => s === "wrong").length;
-        document.getElementById("counter").innerHTML =
-          `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrong}`;
-        document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
-          <button onclick="retryWrong()">틀린 것만 다시하기</button>
-          <button onclick="resetToFullDeck()">전체 다시하기</button>`;
-      }
+  function nextCard() {
+    document.getElementById("selfCheckBtns").style.display = 'none';
+    document.getElementById("voiceHint").textContent = "";
+    hideInlineMessage();
+  
+    // 다음으로 이동 시 현재 문제를 맞춘 것으로 처리
+    answerStatus[current] = "correct";
+  
+    if (current < cards.length - 1) {
+      current++;
+      updateCard();
+    } else {
+      const correct = answerStatus.filter(s => s === "correct").length;
+      const wrong = answerStatus.filter(s => s === "wrong").length;
+      document.getElementById("counter").innerHTML =
+        `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrong}`;
+      document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrong}개 틀렸어요!<br><br>
+        <button onclick="retryWrong()">틀린 것만 다시하기</button>
+        <button onclick="resetToFullDeck()">전체 다시하기</button>`;
     }
+  }
+
 
     function prevCard() {
       current = (current - 1 + cards.length) % cards.length;
