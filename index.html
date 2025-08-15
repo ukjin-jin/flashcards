@@ -19,7 +19,7 @@
       position: relative;
     }
     .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
-    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition: .1s; cursor:pointer;}
+    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; cursor:pointer;}
     .buttons button:hover {background:#f2f2f2;}
     .counter { margin-top: 8px; font-size: 20px; color:#666;}
     #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
@@ -34,7 +34,6 @@
       right: 16px; top: 16px;
       font-size: 28px;
       color: #87a6d5;
-      transition: color .13s;
     }
     .speak-btn:hover { color: #284574; }
     @media (max-width:480px) {
@@ -51,26 +50,27 @@
     <label><input type="checkbox" id="engFirstChk" checked> 외국어 체크</label>
   </div>
   <div class="counter" id="counter"></div>
+
   <div class="card" id="card" onclick="flipCard()">
-    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">
-      🔊
-    </button>
+    <button class="speak-btn" onclick="event.stopPropagation(); speakCurrentCard();">🔊</button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
 
-  <!-- 결과 이미지 표시 영역 -->
-  <div id="resultImageBox" style="margin-top:15px;">
-    <img id="resultImage" src="" alt="" style="max-width:120px; display:none;">
-  </div>
-
   <div id="voiceHint"></div>
+
   <div class="buttons">
     <button id="prevBtn" onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
   </div>
+
+  <!-- 결과 이미지: 버튼 아래 -->
+  <div id="resultImageBox" style="margin-top:15px;">
+    <img id="resultImage" src="" alt="" style="max-width:120px; display:none;">
+  </div>
+
   <div id="selfCheckBtns" style="display: none;">
     <p>맞았나요?</p>
     <button onclick="markCorrectSelf()">⭕ 맞았음</button>
@@ -111,6 +111,7 @@
       current = 0;
       updateCard();
       document.getElementById("resultBox").innerHTML = "";
+      document.getElementById("resultImage").style.display = "none";
     }
 
     function shuffle(array) {
@@ -142,6 +143,22 @@
       }
     }
 
+    function startSpeechRecognition() {
+      if (!useSpeech) return;
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = isForeignFirst() ? "ko-KR" : "en-US";
+      recognition.onresult = function(event) {
+        let said = event.results[0][0].transcript.trim();
+        let correctAnswer = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        if (said === correctAnswer) {
+          markCorrectSelf();
+        } else {
+          markWrong();
+        }
+      };
+      recognition.start();
+    }
+
     function speakCurrentCard() {
       let text, lang;
       if (showingFront) {
@@ -154,24 +171,23 @@
       speak(text, lang);
     }
 
-    function setPageBackground(isCorrect) {
-      const imgEl = document.getElementById("resultImage");
+    function showResultImage(isCorrect) {
+      const img = document.getElementById("resultImage");
       if (isCorrect === true) {
-        imgEl.src = "correct.jpg";
-        imgEl.style.display = "inline";
+        img.src = "correct.jpg";
+        img.style.display = "inline-block";
       } else if (isCorrect === false) {
-        imgEl.src = "wrong.jpg";
-        imgEl.style.display = "inline";
+        img.src = "wrong.jpg";
+        img.style.display = "inline-block";
       } else {
-        imgEl.src = "";
-        imgEl.style.display = "none";
+        img.style.display = "none";
       }
     }
 
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-      setPageBackground(null);
+      showResultImage(null);
       let content = isForeignFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
 
@@ -184,8 +200,6 @@
       speak(content, isForeignFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
-      hideInlineMessage();
-
       document.getElementById("prevBtn").style.display = current === 0 ? "none" : "inline-block";
     }
 
@@ -205,33 +219,26 @@
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
       }
-      hideInlineMessage();
     }
 
     function markWrong() {
       answerStatus[current] = "wrong";
-      setPageBackground(false);
+      showResultImage(false);
       showAnswerThenNextCard();
     }
 
     function markCorrectSelf() {
       answerStatus[current] = "correct";
-      setPageBackground(true);
+      showResultImage(true);
       showAnswerThenNextCard();
     }
 
     function nextCard() {
-      document.getElementById("selfCheckBtns").style.display = 'none';
-      document.getElementById("voiceHint").textContent = "";
-      hideInlineMessage();
-
       if (answerStatus[current] === "wrong") {
         wrongCards = wrongCards.filter(card => card !== cards[current]);
       }
-
       answerStatus[current] = "correct";
-      setPageBackground(true);
-      
+      showResultImage(true);
       if (current < cards.length - 1) {
         current++;
         updateCard();
@@ -263,28 +270,12 @@
       }
     }
 
-    function showInlineMessage(msg) {
-      const box = document.getElementById("inlineMessage");
-      if (!box) return;
-      box.textContent = msg;
-      box.style.display = 'block';
-      if (box.timer) clearTimeout(box.timer);
-      box.timer = setTimeout(() => { box.style.display = 'none'; }, 2000);
-    }
-
-    function hideInlineMessage() {
-      const box = document.getElementById("inlineMessage");
-      if (box) box.style.display = 'none';
-    }
-
     function showAnswerThenNextCard() {
       let answerText = isForeignFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
       document.getElementById("cardText").textContent = answerText;
       speak(answerText, isForeignFirst() ? "ko-KR" : "en-US");
       showingFront = false;
-      setTimeout(() => {
-        nextCard();
-      }, 1000);
+      setTimeout(() => { nextCard(); }, 1000);
     }
 
     function getFirstAnswer(ansStr) {
@@ -293,12 +284,10 @@
 
     if ('webkitSpeechRecognition' in window) {
       useSpeech = true;
-      const speechBtn = document.getElementById("speechBtn");
-      if (speechBtn) speechBtn.style.display = "inline-block";
+      document.getElementById("speechBtn").style.display = "inline-block";
     } else {
       useSpeech = false;
-      const speechBtn = document.getElementById("speechBtn");
-      if (speechBtn) speechBtn.style.display = "none";
+      document.getElementById("speechBtn").style.display = "none";
     }
 
     document.addEventListener('DOMContentLoaded', function () {
