@@ -137,23 +137,26 @@
     }
 
     // 📖 사전 열기
-    function openDictionary() {
-      let text;
-      if (showingFront) {
-        text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-      } else {
-        text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-      }
-      text = (text || "").trim();
-    
-      if (!text) {
-        showInlineMessage("❗ 검색할 단어가 없습니다");
-        return;
-      }
-    
-      const url = `https://dict.naver.com/search.dict?dicQuery=${encodeURIComponent(text)}`;
-      window.open(url, '_blank');
+  function openDictionary() {
+    let text;
+    if (showingFront) {
+      text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+    } else {
+      text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
     }
+    text = (text || "").trim();
+  
+    if (!text) {
+      showInlineMessage("❗ 검색할 단어가 없습니다");
+      return;
+    }
+  
+    const base = "https://dict.naver.com/dict.search";
+    const query = encodeURIComponent(text);
+    const url = `${base}?dicQuery=${query}&query=${query}&target=dic&ie=utf8&query_utf&isOnlyViewEE`;
+    window.open(url, '_blank');
+  }
+
 
 
     function updateCard() {
