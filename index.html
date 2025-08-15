@@ -28,12 +28,24 @@
     }
     .speak-btn:hover { color: #284574; }
     @media (max-width:480px) {
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-x: hidden;
+      }
+    
       .card {
-        width: 100%;          /* 화면 폭 기준 */
-        min-height: 50vh;
-        font-size: 28px;
-        padding: 48px 4vw;
-        box-sizing: border-box; /* 패딩 포함 폭 계산 */
+        width: 100%;
+        min-height: 40vh;     /* 화면의 40% 이상 */
+        max-height: 55vh;     /* 최대 55%까지만 */
+        font-size: 6vw;       /* 화면 크기에 비례한 글씨 */
+        padding: 24px 4vw;
+        box-sizing: border-box;
+      }
+    
+      .buttons {
+        margin-top: 12px;
       }
     }
   </style>
