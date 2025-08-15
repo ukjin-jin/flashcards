@@ -142,6 +142,8 @@
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
       hideInlineMessage();
+      
+      document.querySelector(".buttons button:first-child").style.display = (current === 0) ? "none" : "inline-block";
     }
 
     function flipCard() {
