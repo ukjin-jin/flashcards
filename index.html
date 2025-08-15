@@ -35,8 +35,17 @@
       color: #87a6d5;
     }
     .speak-btn:hover { color: #284574; }
-    #resultImageBox { margin-top:15px; }
-    #resultImage { max-width:200px; display:none; }
+    #resultImageBox {
+      margin-top: 15px;
+      display: flex;
+      justify-content: center; /* 가로 중앙 정렬 */
+      align-items: center;     /* 세로 정렬 (높이가 있을 경우) */
+    }
+    
+    #resultImage {
+      max-width: 200px;
+      display: none;
+    }
   </style>
 </head>
 <body>
