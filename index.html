@@ -144,10 +144,17 @@
       } else {
         text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
       }
-      text = text.trim();
+      text = (text || "").trim();
+    
+      if (!text) {
+        showInlineMessage("❗ 검색할 단어가 없습니다");
+        return;
+      }
+    
       const url = `https://dict.naver.com/search.dict?dicQuery=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
     }
+
 
     function updateCard() {
       if (cards.length === 0) return;
