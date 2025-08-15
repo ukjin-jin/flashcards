@@ -138,18 +138,21 @@
       speak(text, lang);
     }
 
-  function setPageBackground(isCorrect) {
-    if (isCorrect === true) {
-      document.body.style.backgroundImage = "url('correct.jpg')";
-    } else if (isCorrect === false) {
-      document.body.style.backgroundImage = "url('wrong.jpg')";
-    } else {
-      document.body.style.backgroundImage = "none"; // 기본 배경
-    }
-    document.body.style.backgroundSize = "cover";
-    document.body.style.backgroundPosition = "center";
-    document.body.style.backgroundRepeat = "no-repeat";
+ function setPageBackground(isCorrect) {
+  if (isCorrect === true) {
+    document.body.style.backgroundImage = "url('correct.jpg')";
+  } else if (isCorrect === false) {
+    document.body.style.backgroundImage = "url('wrong.jpg')";
+  } else {
+    document.body.style.backgroundImage = "none"; // 기본 배경
   }
+
+  document.body.style.backgroundSize = "cover";       // 화면 꽉 채움
+  document.body.style.backgroundPosition = "center";  // 가운데 정렬
+  document.body.style.backgroundRepeat = "no-repeat"; // 반복 안 함
+  document.body.style.backgroundAttachment = "fixed"; // 스크롤해도 고정
+}
+
 
     function updateCard() {
       if (cards.length === 0) return;
