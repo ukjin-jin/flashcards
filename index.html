@@ -3,165 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <title>Flashcards</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
     h2 { margin-bottom: 6px; }
-    .card {
-      background: white;
-      border-radius: 14px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
-      padding: 50px 20px;
-      margin: 25px auto 10px;
-      width: 350px;
-      font-size: 28px;
-      cursor: pointer;
-      position: relative;
-      min-height: 100px;
-      display: flex; flex-direction: column; justify-content: center;
-    }
-    .message-overlay {
-      position: absolute;
-      top: -36px;
-      left: 0; right: 0; margin: auto;
-      background: #fff3cd; color: #856404;
-      padding: 8px 20px; border-radius: 12px; font-size: 17px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      display: none;
-    }
-    .buttons button {
-      margin: 8px 6px; padding: 16px 24px; font-size: 21px;
-      border-radius: 8px; border:1px solid #bbb; background:#fff;
-      transition: .1s; cursor:pointer;
-    }
+    .card { background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); padding: 50px 20px; margin: 25px auto 10px; width: 350px; font-size: 28px; cursor: pointer; position: relative;}
+    .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
+    .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition: .1s; cursor:pointer;}
     .buttons button:hover {background:#f2f2f2;}
-    .counter { margin-top: 8px; font-size: 22px; color:#666;}
-    #voiceHint { margin-top: 12px; font-size: 19px; color: #777;}
-    #resultBox { margin-top: 36px; font-size: 22px;}
-    .randbox { margin-bottom: 14px; font-size: 18px;}
-    input[type=checkbox]{width:22px;height:22px;vertical-align:-5px;}
+    .counter { margin-top: 8px; font-size: 20px; color:#666;}
+    #voiceHint { margin-top: 8px; font-size: 16px; color: #777;}
+    #resultBox { margin-top: 36px; font-size: 19px;}
+    .randbox { margin-bottom: 10px; font-size: 16px;}
+    input[type=checkbox]{width:18px;height:18px;vertical-align:-3px;}
     .speak-btn {
-      border: none; background: none; cursor: pointer;
-      position: absolute; right: 16px; top: 16px;
-      font-size: 34px; color: #87a6d5; transition: color .13s;
+      border: none;
+      background: none;
+      cursor: pointer;
+      position: absolute;
+      right: 16px; top: 16px;
+      font-size: 28px;
+      color: #87a6d5;
+      transition: color .13s;
     }
     .speak-btn:hover { color: #284574; }
-
-    /* 모바일 확대 */
-    @media (max-width:600px) {
-      .card{ width:97vw; font-size:30px; padding:38px 1vw; min-height:84px; }
-      .counter, #voiceHint, #resultBox { font-size: 22px;}
-      .randbox {font-size: 19px;}
-      .buttons button {font-size: 22px; padding: 16px 10vw;}
-      .speak-btn { font-size: 34px; right: 6px; top: 8px;}
-      .message-overlay {font-size: 20px; top: -42px;}
-      #cardText {font-size: 32px;}
+    @media (max-width:480px) {
+      .card{width:95vw;font-size:20px;padding:32px 2vw;}
+      .speak-btn { font-size: 22px; right: 7px; top: 7px;}
     }
   </style>
 </head>
 <body>
   <h2>🧠 <b>Flashcard 학습</b></h2>
-
   <div class="randbox">
     <label><input type="checkbox" id="randomModeChk"> 무작위(랜덤) 출제</label>
     &nbsp;&nbsp;
     <label><input type="checkbox" id="engFirstChk" checked> 영어 체크</label>
   </div>
-
   <div class="counter" id="counter"></div>
-
   <div class="card" id="card" onclick="flipCard()">
-    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">🔊</button>
+    <button class="speak-btn" id="speakBtn" onclick="event.stopPropagation(); speakCurrentCard();">
+      🔊
+    </button>
     <span id="cardText">Loading...</span>
     <div class="message-overlay" id="inlineMessage"></div>
   </div>
-
   <div id="voiceHint"></div>
-
   <div class="buttons">
-    <button id="prevBtn" onclick="prevCard()">◀ 이전</button>
+    <button onclick="prevCard()">◀ 이전</button>
     <button onclick="nextCard()">다음 ▶</button>
     <button onclick="markWrong()">틀렸음</button>
     <button onclick="speakAndStartRecognition()" id="speechBtn">🎤 정답 말하기</button>
   </div>
-
   <div id="selfCheckBtns" style="display: none;">
     <p>맞았나요?</p>
     <button onclick="markCorrectSelf()">⭕ 맞았음</button>
     <button onclick="markWrong()">❌ 틀렸음</button>
   </div>
-
   <div id="resultBox"></div>
-
   <script>
-    /* ====== 설정 ====== */
-    // 구글 스프레드시트 CSV 공개 링크 (A:영어, B:한글/동의어 쉼표구분)
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
-    // 당신이 띄운 Google TTS 프록시 서버 주소로 변경!
-    const TTS_SERVER_URL = "http://localhost:5000/tts";
-
-    /* ====== 상태 ====== */
     let recognizing = false;
     let useSpeech = false;
+    let alreadySpoken = false;
     let showingFront = true;
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EPGeJNpj9r8wq9Q-7OocVR8T_umBBcXi2qk9P-uUXXY/export?format=csv";
     let originalCards = [], cards = [], wrongCards = [];
     let current = 0;
 
-    /* ====== 유틸 ====== */
     function isEngFirst() {
       return document.getElementById("engFirstChk").checked;
     }
-    function getFirstAnswer(ansStr) {
-      return ansStr.split(/,|，/)[0].trim();
-    }
-    function isSameCard(a, b) {
-      return a.front === b.front && a.back === b.back;
-    }
-    function showInlineMessage(msg) {
-      const box = document.getElementById("inlineMessage");
-      if (!box) return;
-      box.textContent = msg;
-      box.style.display = 'block';
-      if (box.timer) clearTimeout(box.timer);
-      box.timer = setTimeout(() => { box.style.display = 'none'; }, 2000);
-    }
-    function hideInlineMessage() {
-      const box = document.getElementById("inlineMessage");
-      if (box) box.style.display = 'none';
-    }
 
-    /* ====== Google TTS 호출 ====== */
-    async function playTTS_GCloud(text, lang, afterPlay) {
-      try {
-        const response = await fetch(TTS_SERVER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, lang })
-        });
-        if (!response.ok) throw new Error('TTS 서버 오류');
-        const blob = await response.blob();
-        const audio = new Audio(URL.createObjectURL(blob));
-        if (afterPlay) audio.onended = afterPlay;
-        audio.play();
-        return audio;
-      } catch (e) {
-        console.error(e);
-        // 발음 실패해도 학습 흐름은 끊기지 않게
-        if (afterPlay) afterPlay();
-      }
-    }
-
-    /* ====== 데이터 로드/섞기 ====== */
     async function loadCards() {
       const response = await fetch(SHEET_URL);
       const text = await response.text();
       const rows = text.trim().split("\n").slice(1);
       originalCards = rows.map(row => {
         const [front, back] = row.split(",");
-        return { front: (front||"").trim(), back: (back||"").trim() };
+        return { front: front.trim(), back: back.trim() };
       });
       resetToFullDeck();
     }
+
     function resetToFullDeck() {
       cards = [...originalCards];
       if (document.getElementById("randomModeChk").checked) shuffle(cards);
@@ -170,6 +92,7 @@
       updateCard();
       document.getElementById("resultBox").innerHTML = "";
     }
+
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -177,54 +100,80 @@
       }
     }
 
-    /* ====== 화면 업데이트 ====== */
+    function speak(text, lang, callback) {
+      if (!window.speechSynthesis) {
+        if (callback) callback();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = lang;
+        if (callback) utter.onend = callback;
+        window.speechSynthesis.speak(utter);
+      }, 150);
+    }
+
+    // 스피커 버튼에서 호출
+    function speakCurrentCard() {
+      let text, lang;
+      if (showingFront) {
+        text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        lang = isEngFirst() ? "en-US" : "ko-KR";
+      } else {
+        text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        lang = isEngFirst() ? "ko-KR" : "en-US";
+      }
+      speak(text, lang);
+    }
+
     function updateCard() {
       if (cards.length === 0) return;
       showingFront = true;
-
-      const content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+      let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
       document.getElementById("cardText").textContent = content;
-
-      // 진행/정오 현황
       let correctSoFar = current - wrongCards.length;
       if (correctSoFar < 0) correctSoFar = 0;
+
       document.getElementById("counter").innerHTML =
         `문제 ${current + 1} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correctSoFar} &nbsp; 틀린 개수: ${wrongCards.length}`;
 
+      speak(content, isEngFirst() ? "en-US" : "ko-KR");
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
       hideInlineMessage();
-
-      // 첫 문제에서는 이전 버튼 숨김
-      document.getElementById('prevBtn').style.visibility = current === 0 ? "hidden" : "visible";
     }
 
     function flipCard() {
       if (cards.length === 0) return;
-      let content;
+      let content, lang;
       if (showingFront) {
         content = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+        lang = isEngFirst() ? "ko-KR" : "en-US";
       } else {
         content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        lang = isEngFirst() ? "en-US" : "ko-KR";
       }
       document.getElementById("cardText").textContent = content;
+      speak(content, lang);
       showingFront = !showingFront;
-
       if (!useSpeech && !showingFront) {
         document.getElementById("selfCheckBtns").style.display = 'block';
       }
       hideInlineMessage();
     }
 
-    /* ====== 버튼 동작 ====== */
-    function markWrong() { markWrongAndShowAnswer(); }
-    function markCorrectSelf() { showAnswerThenNextCard(); }
+    function markWrong() {
+      markWrongAndShowAnswer();
+    }
+    function markCorrectSelf() {
+      showAnswerThenNextCard();
+    }
 
     function nextCard() {
       document.getElementById("selfCheckBtns").style.display = 'none';
       document.getElementById("voiceHint").textContent = "";
       hideInlineMessage();
-
       if (current < cards.length - 1) {
         current++;
         updateCard();
@@ -232,19 +181,14 @@
         const correct = cards.length - wrongCards.length;
         document.getElementById("counter").innerHTML =
           `문제 ${cards.length} / ${cards.length} &nbsp; | &nbsp; 맞춘 개수: ${correct} &nbsp; 틀린 개수: ${wrongCards.length}`;
-        document.getElementById("resultBox").innerHTML =
-          `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!<br><br>
-           <button onclick="retryWrong()">틀린 것만 다시하기</button>
-           <button onclick="resetToFullDeck()">전체 다시하기</button>`;
+        document.getElementById("resultBox").innerHTML = `✅ ${correct}개 맞고 ❌ ${wrongCards.length}개 틀렸어요!<br><br>
+          <button onclick="retryWrong()">틀린 것만 다시하기</button>
+          <button onclick="resetToFullDeck()">전체 다시하기</button>`;
       }
     }
 
     function prevCard() {
-      if (current <= 0) return;
-      // 이전 카드의 오답 기록 삭제(되돌리기)
-      const prev = cards[current - 1];
-      wrongCards = wrongCards.filter(card => !isSameCard(card, prev));
-      current--;
+      current = (current - 1 + cards.length) % cards.length;
       updateCard();
     }
 
@@ -259,49 +203,100 @@
       }
     }
 
-    // 정답/오답 후 '답'을 1초 보여주고 다음 카드
-    function showAnswerThenNextCard() {
-      const answerText = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-      document.getElementById("cardText").textContent = answerText;
-      showingFront = false;
-      setTimeout(() => { nextCard(); }, 1000);
+    function showInlineMessage(msg) {
+      const box = document.getElementById("inlineMessage");
+      if (!box) return;
+      box.textContent = msg;
+      box.style.display = 'block';
+      if (box.timer) clearTimeout(box.timer);
+      box.timer = setTimeout(() => { box.style.display = 'none'; }, 2000);
     }
+    function hideInlineMessage() {
+      const box = document.getElementById("inlineMessage");
+      if (box) box.style.display = 'none';
+    }
+
+    // (핵심) 정답/오답 후 답(뒤집힌 카드) 보여주고 다음 카드로 자동
+    function showAnswerThenNextCard() {
+      let answerText = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
+      document.getElementById("cardText").textContent = answerText;
+      speak(answerText, isEngFirst() ? "ko-KR" : "en-US");
+      showingFront = false;
+      setTimeout(() => {
+        nextCard();
+      }, 1000);
+    }
+    // 오답시: 틀린 목록에 넣고 정답 보여주기
     function markWrongAndShowAnswer() {
       wrongCards.push(cards[current]);
       showAnswerThenNextCard();
     }
 
-    /* ====== 스피커 / 정답말하기 ====== */
-    // 스피커(현재 보이는 텍스트를 읽어줌) - TTS 서버 사용
-    function speakCurrentCard() {
-      if (showingFront) {
-        const text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-        const lang = isEngFirst() ? "en-US" : "ko-KR";
-        playTTS_GCloud(text, lang);
-      } else {
-        const text = isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front;
-        const lang = isEngFirst() ? "ko-KR" : "en-US";
-        playTTS_GCloud(text, lang);
-      }
+    // 동의어 중 첫 번째만 반환
+    function getFirstAnswer(ansStr) {
+      return ansStr.split(/,|，/)[0].trim();
     }
 
-    // 정답 말하기: 발음 재생 -> 끝나면 음성인식 시작
+    // 레벤슈타인(최소 편집 거리) 함수
+    function getEditDistance(a, b) {
+      a = a.toLowerCase();
+      b = b.toLowerCase();
+      let costs = [];
+      for (let i = 0; i <= a.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= b.length; j++) {
+          if (i === 0)
+            costs[j] = j;
+          else {
+            if (j > 0) {
+              let newValue = costs[j - 1];
+              if (a.charAt(i - 1) !== b.charAt(j - 1))
+                newValue = Math.min(Math.min(newValue, lastValue),
+                  costs[j]) + 1;
+              costs[j - 1] = lastValue;
+              lastValue = newValue;
+            }
+          }
+        }
+        if (i > 0)
+          costs[b.length] = lastValue;
+      }
+      return costs[b.length];
+    }
+
+    // 동의어/반복발음/오타 모두 허용 + 쉼표, 중국식 쉼표 모두 분리
+    function isAnswerCorrect(said, answer) {
+      // 쉼표(,) 또는 중국식 쉼표(，)로 분리, 각 후보에서 trim()으로 공백 제거
+      const answerList = answer.split(/,|，/).map(v => v.trim().toLowerCase());
+      for (let candidate of answerList) {
+        if (said === candidate) return true;
+        // 반복 발음(공백 제거)
+        let compactSaid = said.replace(/\s/g, '');
+        let compactCand = candidate.replace(/\s/g, '');
+        const pattern = new RegExp(`^(${compactCand})+$`);
+        if (pattern.test(compactSaid)) return true;
+        // 오타 1글자까지 허용
+        if (getEditDistance(said, candidate) <= 1) return true;
+      }
+      return false;
+    }
+
+    // 정답 말하기 버튼: 세션 전체에서 1번만 읽기
     function speakAndStartRecognition() {
-      const text = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
-      const lang = isEngFirst() ? "en-US" : "ko-KR";
-      playTTS_GCloud(text, lang, startSpeechRecognition);
+      if (!alreadySpoken) {
+        alreadySpoken = true;
+        let content = isEngFirst() ? cards[current].front : getFirstAnswer(cards[current].back);
+        let lang = isEngFirst() ? "en-US" : "ko-KR";
+        speak(content, lang, startSpeechRecognition);
+      } else {
+        startSpeechRecognition();
+      }
     }
 
-    /* ====== 음성 인식 ====== */
     function startSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window) || recognizing) {
-        // 미지원이면 셀프체크로
-        document.getElementById("selfCheckBtns").style.display = 'block';
-        return;
-      }
+      if (!('webkitSpeechRecognition' in window) || recognizing) return;
       recognizing = true;
       const recog = new webkitSpeechRecognition();
-      // 영어 앞면이면 정답(한글)을 말해야 하므로 ko-KR, 그 반대면 en-US
       recog.lang = isEngFirst() ? 'ko-KR' : 'en-US';
       recog.interimResults = false;
       recog.maxAlternatives = 1;
@@ -309,11 +304,8 @@
       document.getElementById("voiceHint").textContent = "🗣️ 말하세요...";
 
       recog.onresult = function(event) {
-        const saidRaw = event.results[0][0].transcript || "";
-        const said = saidRaw.trim().toLowerCase().replace(/\s/g, '');
-        const answerRaw = isEngFirst() ? cards[current].back : cards[current].front;
-        const answer = (answerRaw || "").trim().toLowerCase();
-
+        const said = event.results[0][0].transcript.trim().toLowerCase().replace(/\s/g, '');
+        const answer = (isEngFirst() ? cards[current].back : cards[current].front).trim().toLowerCase();
         if (isAnswerCorrect(said, answer)) {
           showInlineMessage(`✅ 정답!`);
           recognizing = false;
@@ -323,7 +315,7 @@
             document.getElementById("voiceHint").textContent = "";
           }, 800);
         } else {
-          showInlineMessage(`❌ ${saidRaw} → 정답: ${isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
+          showInlineMessage(`❌ ${event.results[0][0].transcript} → 정답: ${isEngFirst() ? getFirstAnswer(cards[current].back) : cards[current].front}`);
           recognizing = false;
           setTimeout(() => {
             hideInlineMessage();
@@ -344,7 +336,6 @@
       recog.start();
     }
 
-    // 브라우저 지원 여부(버튼 노출만 제어)
     if ('webkitSpeechRecognition' in window) {
       useSpeech = true;
       const speechBtn = document.getElementById("speechBtn");
@@ -352,53 +343,14 @@
     } else {
       useSpeech = false;
       const speechBtn = document.getElementById("speechBtn");
-      if (speechBtn) speechBtn.style.display = "inline-block"; // 미지원이어도 셀프체크 대안 있으니 노출
+      if (speechBtn) speechBtn.style.display = "none";
     }
 
-    /* ====== 정답 판정(동의어/반복/오타 허용) ====== */
-    function getEditDistance(a, b) {
-      a = (a||"").toLowerCase(); b = (b||"").toLowerCase();
-      let costs = [];
-      for (let i = 0; i <= a.length; i++) {
-        let lastValue = i;
-        for (let j = 0; j <= b.length; j++) {
-          if (i === 0) costs[j] = j;
-          else if (j > 0) {
-            let newValue = costs[j - 1];
-            if (a.charAt(i - 1) !== b.charAt(j - 1))
-              newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-            costs[j - 1] = lastValue; lastValue = newValue;
-          }
-        }
-        if (i > 0) costs[b.length] = lastValue;
-      }
-      return costs[b.length];
-    }
-
-    function isAnswerCorrect(said, answer) {
-      // 동의어: 쉼표/중국식 쉼표 모두 허용, 공백 제거
-      const answerList = answer.split(/,|，/).map(v => (v||"").trim().toLowerCase());
-      for (let candidate of answerList) {
-        if (!candidate) continue;
-        if (said === candidate) return true;
-
-        // 반복 발음 허용(공백 제거 후 candidate 반복 체크)
-        const compactSaid = (said||"").replace(/\s/g, '');
-        const compactCand = (candidate||"").replace(/\s/g, '');
-        const pattern = new RegExp(`^(${compactCand})+$`);
-        if (pattern.test(compactSaid)) return true;
-
-        // 오타 1글자까지 허용
-        if (getEditDistance(said, candidate) <= 1) return true;
-      }
-      return false;
-    }
-
-    /* ====== 이벤트/초기화 ====== */
     document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('randomModeChk').addEventListener('change', resetToFullDeck);
       document.getElementById('engFirstChk').addEventListener('change', resetToFullDeck);
     });
+
     loadCards();
   </script>
 </body>
