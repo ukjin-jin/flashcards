@@ -7,7 +7,23 @@
   <style>
     body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
     h2 { margin-bottom: 6px; }
-    .card { background: white; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); padding: 50px 20px; margin: 25px auto 10px; width: 350px; font-size: 28px; cursor: pointer; position: relative;}
+    .card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+  padding: 50px 20px;
+  margin: 25px auto 10px;
+  width: 350px;
+  font-size: 28px;
+  cursor: pointer;
+  position: relative;
+
+  /* 추가된 부분 */
+  display: flex;
+  justify-content: center;  /* 가로 중앙 */
+  align-items: center;      /* 세로 중앙 */
+  text-align: center;       /* 여러 줄일 때 중앙 정렬 */
+}
     .message-overlay { position: absolute; top: -36px; left: 0; right: 0; margin: auto; background: #fff3cd; color: #856404; padding: 8px 20px; border-radius: 12px; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none;}
     .buttons button { margin: 8px 6px; padding: 12px 22px; font-size: 17px; border-radius: 6px; border:1px solid #bbb; background:#fff; transition: .1s; cursor:pointer;}
     .buttons button:hover {background:#f2f2f2;}
@@ -42,11 +58,18 @@
   }
 
   .card {
-    flex: 1 1 auto;             /* 가변 높이 */
-    max-height: 55vh;           /* 화면 높이의 절반 조금 넘게 */
-    font-size: 6vw;             /* 글씨 비율 */
-    padding: 20px 4vw;
+    width: 100%;
+    min-height: 40vh;
+    max-height: 55vh;
+    font-size: 6vw;
+    padding: 24px 4vw;
     box-sizing: border-box;
+
+    /* 중앙 정렬 유지 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 
   .buttons {
