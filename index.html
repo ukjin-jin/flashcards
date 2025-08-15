@@ -27,27 +27,34 @@
       transition: color .13s;
     }
     .speak-btn:hover { color: #284574; }
-    @media (max-width:480px) {
-      body {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        overflow-x: hidden;
-      }
-    
-      .card {
-        width: 100%;
-        min-height: 40vh;     /* 화면의 40% 이상 */
-        max-height: 55vh;     /* 최대 55%까지만 */
-        font-size: 6vw;       /* 화면 크기에 비례한 글씨 */
-        padding: 24px 4vw;
-        box-sizing: border-box;
-      }
-    
-      .buttons {
-        margin-top: 12px;
-      }
-    }
+   @media (max-width:480px) {
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 카드, 버튼 사이 띄움 */
+  }
+
+  .card {
+    flex: 1 1 auto;             /* 가변 높이 */
+    max-height: 55vh;           /* 화면 높이의 절반 조금 넘게 */
+    font-size: 6vw;             /* 글씨 비율 */
+    padding: 20px 4vw;
+    box-sizing: border-box;
+  }
+
+  .buttons {
+    flex: 0 0 auto;              /* 고정 높이 */
+    margin-top: 8px;
+    padding-bottom: env(safe-area-inset-bottom); /* 아이폰 홈바 대응 */
+  }
+}
   </style>
 </head>
 <body>
