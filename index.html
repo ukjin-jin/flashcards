@@ -29,10 +29,11 @@
     .speak-btn:hover { color: #284574; }
     @media (max-width:480px) {
       .card {
-        width: 100vw;          /* 화면 가로 전부 사용 */
-        min-height: 50vh;      /* 화면 세로의 절반 이상 차지 */
-        font-size: 28px;       /* 글씨 크게 */
-        padding: 48px 4vw;     /* 여백 넉넉히 */
+        width: 100%;          /* 화면 폭 기준 */
+        min-height: 50vh;
+        font-size: 28px;
+        padding: 48px 4vw;
+        box-sizing: border-box; /* 패딩 포함 폭 계산 */
       }
     }
   </style>
