@@ -326,8 +326,10 @@
           }, 1100);
         }
       };
-      recog.onerror = function() {
-        showInlineMessage("❗ 음성 인식 실패");
+      recog.onerror = function(e) {
+        // e.error 값: 'not-allowed', 'audio-capture', 'network', 'no-speech', 'aborted' 등
+        showInlineMessage(`❗ 음성 인식 실패: ${e.error}`);
+        console.warn("Speech recognition error:", e.error, e);
         document.getElementById("voiceHint").textContent = "";
         recognizing = false;
       };
