@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flashcards</title>
   <style>
     body { font-family: sans-serif; text-align: center; background: #f8f8f8; padding: 20px;}
@@ -27,8 +28,12 @@
     }
     .speak-btn:hover { color: #284574; }
     @media (max-width:480px) {
-      .card{width:95vw;font-size:20px;padding:32px 2vw;}
-      .speak-btn { font-size: 22px; right: 7px; top: 7px;}
+      .card {
+        width: 100vw;          /* 화면 가로 전부 사용 */
+        min-height: 50vh;      /* 화면 세로의 절반 이상 차지 */
+        font-size: 28px;       /* 글씨 크게 */
+        padding: 48px 4vw;     /* 여백 넉넉히 */
+      }
     }
   </style>
 </head>
